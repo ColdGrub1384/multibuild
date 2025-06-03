@@ -20,7 +20,6 @@ let package = Package(
             dependencies: [],
             resources: [
                 .copy("Environment")
-            ]
-        )
+            ])
     ]
 )

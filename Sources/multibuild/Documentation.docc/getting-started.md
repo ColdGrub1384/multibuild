@@ -2,9 +2,9 @@
 
 Learn how to declare and compile projects with `multibuild`. 
 
-To start, create a Swift command line program and add `multibuild` as a dependency. You can use if you wish your executable as a build tool or command plugin.
+To start, create a Swift target with ``multibuild`` as a dependency. It can be an executable or a build tool / command plugin. 
 
-Example of a `Package.swift` manifest:
+Example of a `Package.swift` manifest for a command plugin:
 
 ```swift
 import PackageDescription
@@ -12,9 +12,7 @@ import PackageDescription
 let package = Package(
     name: "build-libraries",
     products: [
-        .executable(
-            name: "build-libraries",
-            targets: ["build-libraries"]),
+        .plugin(name: "build-libraries", targets: ["build-libraries"])
     ],
 
     dependencies: [
@@ -22,12 +20,17 @@ let package = Package(
     ],
 
     targets:[
-        .executableTarget(
+        .plugin(
             name: "build-libraries",
+            capability: .command(
+                intent: .custom(verb: "build-libraries", description: "Build open source libraries"),
+                permissions: [
+                    .allowNetworkConnections(scope: .unixDomainSocket, reason: "Git pull and other network operations"),
+                    .writeToPackageDirectory(reason: "Compile projects")
+                ]),
             dependencies: [
                 .target(name: "multibuild")
-            ],
-        )
+        ])
     ]
 )
 ```
