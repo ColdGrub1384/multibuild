@@ -18,7 +18,7 @@ let package = Package(
     ],
 
     dependencies: [
-        .package(url: "pi@gatites.no.binarios.cl:emmacold/multibuild.git", from: "main"),
+        .package(url: "pi@gatites.no.binarios.cl:emmacold/multibuild.git", branch: "main"),
     ],
 
     targets:[
