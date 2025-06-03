@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:multibuild}",
+            "name": "Release multibuild",
+            "program": "${workspaceFolder:multibuild}/.build/release/multibuild",
+            "preLaunchTask": "swift: Build Release multibuild"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:multibuild}",
+            "name": "Debug multibuild",
+            "program": "${workspaceFolder:multibuild}/.build/debug/multibuild",
+            "preLaunchTask": "swift: Build Debug multibuild"
+        }
+    ]
+}

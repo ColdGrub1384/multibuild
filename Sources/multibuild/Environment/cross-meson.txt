@@ -1,0 +1,29 @@
+[binaries]
+c = ['iosxcrun', '--sdk', '$SDK_NAME', 'clang', '-arch', '$ARCH', '-isysroot', '$SDK_PATH']
+cpp = ['iosxcrun', '--sdk', '$SDK_NAME', 'clang++', '-arch', '$ARCH', '-isysroot', '$SDK_PATH']
+objc = ['iosxcrun', '--sdk', '$SDK_NAME', 'clang', '-arch', '$ARCH', '-isysroot', '$SDK_PATH']
+objcpp = ['iosxcrun', '--sdk', '$SDK_NAME', 'clang++', '-arch', '$ARCH', '-isysroot', '$SDK_PATH']
+ld = ['clang']
+ar = 'ar'
+strip = 'strip'
+
+[built-in options]
+c_args = ['$MINVERSION_FLAG', '-target', '$TARGET_TRIPLE', '-I$PYTHON_HEADERS', '-DNO_APPEND_FORTRAN=1']
+cpp_args = ['$MINVERSION_FLAG', '-target', '$TARGET_TRIPLE', '-I$PYTHON_HEADERS', '-DNO_APPEND_FORTRAN=1']
+c_link_args = ['$MINVERSION_FLAG', '-target', '$TARGET_TRIPLE', '-F$PYTHON_LIB', '-framework', '$PYTHON_FRAMEWORK']
+cpp_link_args = ['$MINVERSION_FLAG', '-target', '$TARGET_TRIPLE', '-F$PYTHON_LIB', '-framework', '$PYTHON_FRAMEWORK']
+objc_args = ['$MINVERSION_FLAG', '-target', '$TARGET_TRIPLE']
+objcpp_args = ['$MINVERSION_FLAG', '-target', '$TARGET_TRIPLE']
+
+[properties]
+root = '$ROOT'
+has_function_printf = true
+has_function_hfkerhisadf = false
+
+[host_machine]
+system = 'darwin'
+subsystem = '$SUBSYSTEM'
+kernel = 'xnu'
+cpu_family = '$CPU'
+cpu = '$CPU'
+endian = 'little'

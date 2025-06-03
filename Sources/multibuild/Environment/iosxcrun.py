@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+
+import sys
+import shlex
+import os
+import subprocess
+try:
+    import numpy as np
+except (ImportError, ModuleNotFoundError):
+    np = None
+
+args = sys.argv
+del args[0]
+
+new_args = ["xcrun"]
+
+is_just_c_not_cpp = True
+for arg in sys.argv:
+    if arg.endswith(".cpp") or arg.endswith(".cxx") or arg.endswith(".cc"):
+        is_just_c_not_cpp = False
+
+catalyst = (os.environ.get("PLATFORM") == "maccatalyst")
+mac = False
+assembly = False
+is_preprocessor = False
+for arg in sys.argv:
+
+    if arg == "--mac":
+        mac = True
+        continue
+
+    if ("--version" in sys.argv or "-Wl,--version" in sys.argv) and arg.startswith("-Wl,--defsym"):
+        continue
+
+    if arg == "-static":
+        continue
+
+    if arg.startswith("-std=c++"):
+        continue
+
+    if arg == "-E" and new_args[-1] == "clang":
+        is_preprocessor = True
+
+    # if arg == "-lssl" or arg == "-lcrypto":
+    #     continue
+
+    if not mac and arg.endswith("MacOSX.sdk/usr/include/ffi"):
+        continue
+    
+    if not mac and not catalyst and arg.startswith("-mmacosx-version-min="):
+        continue
+    
+    if mac and not catalyst and arg.startswith("-mios-version-min="):
+        continue
+        
+    # if arg.startswith("-L") and "zlib" in arg:
+    #     continue
+
+    # if arg.startswith("-L") and "freetype" in arg:
+    #     continue
+
+    if arg == "-L/usr/local/lib":
+        continue
+    
+    if arg == "-nologo":
+        continue
+    
+    if arg.endswith(".S") and new_args[-1] == "-c":
+        assembly = True
+
+    if np is not None and arg == "-I"+np.get_include():
+        print("Ignored Numpy include path")
+        continue
+    elif arg == "-march=native":
+        continue
+    elif not mac and not catalyst and ("MacOSX" in arg or "macosx" in arg):
+        if arg.endswith(".sdk"):
+            arg = subprocess.run("xcrun -sdk iphoneos --show-sdk-path".split(" "), capture_output=True).stdout.decode().split("\n")[0]
+        else:
+            continue
+    elif mac and ("iPhoneOS" in arg or "iphoneos" in arg):
+        if arg.endswith(".sdk"):
+            arg = subprocess.run("xcrun -sdk macosx --show-sdk-path".split(" "), capture_output=True).stdout.decode().split("\n")[0]
+        else:
+            continue
+    elif (arg == "-arch" or arg == "arm64" or arg == "x86_64" or arg == "armv7k" or arg == "arm64_32") and (new_args[-1] == "-isysroot" or is_preprocessor):
+        continue
+    else:
+        if arg == "-bundle":
+            arg = "-shared"
+        elif arg == "fPIC":
+            arg = "-fPIC"
+    new_args.append(arg)
+
+if is_just_c_not_cpp:
+    if "scipy/ndimage/src/ni_morphology.c" in " ".join(new_args):
+        new_args.append("-std=c11")
+else:
+    new_args.append("-std=c++17")
+
+if "-lopenblas" in new_args:
+    new_args.append("-L"+os.path.abspath(os.path.dirname(__file__)))
+    new_args.append("-llapack")
+
+if len(new_args) > 1 and new_args[1].startswith("-") and assembly:
+    new_args.insert(1, "clang")
+
+
+p = subprocess.Popen(new_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+p.wait()
+sys.exit(p.returncode)
