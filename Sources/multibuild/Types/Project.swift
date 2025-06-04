@@ -15,6 +15,20 @@ public struct Project {
     /// Backend build system.
     public var backend: BuildBackend
 
+    /// Initializes a project.
+    /// 
+    /// - Parameters:
+    ///   - directoryURL: Root location of the project. 
+    ///   - gitVersion: A Git branch, tag or commit to checkout out before compiling.
+    ///   - patchURL: The URL of a patch to apply before compiling. Will be undone after.
+    ///   - backend: Backend build system.
+    public init(directoryURL: URL, gitVersion: String? = nil, patchURL: URL? = nil, backend: BuildBackend) {
+        self.directoryURL = directoryURL
+        self.gitVersion = gitVersion
+        self.patchURL = patchURL
+        self.backend = backend
+    }
+
     /// An error ocurred while compiling a target.
     public struct CompileError: Error {
 
