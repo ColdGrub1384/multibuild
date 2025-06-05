@@ -1,10 +1,12 @@
 import Foundation
 
+var ProjectNames = [String:Project]()
+
 /// Structure representing any project to compile.
 public struct Project {
 
     /// Root location of the project. 
-    public var directoryURL: URL
+    public var directoryURL: URL!
 
     /// A Git branch, tag or commit to checkout out before compiling.
     public var gitVersion: String?
@@ -13,7 +15,14 @@ public struct Project {
     public var patchURL: URL?
 
     /// Backend build system.
-    public var backend: BuildBackend
+    public var backend: BuildBackend!
+
+    /// Dependencies to build before compiling.
+    public var dependencies: [Dependency]
+
+    internal init(projects: [Project]) {
+        self.dependencies = projects.map({ Dependency.project($0) })
+    }
 
     /// Initializes a project.
     /// 
@@ -22,11 +31,13 @@ public struct Project {
     ///   - gitVersion: A Git branch, tag or commit to checkout out before compiling.
     ///   - patchURL: The URL of a patch to apply before compiling. Will be undone after.
     ///   - backend: Backend build system.
-    public init(directoryURL: URL, gitVersion: String? = nil, patchURL: URL? = nil, backend: BuildBackend) {
+    public init(directoryURL: URL, gitVersion: String? = nil, patchURL: URL? = nil, dependencies: [Dependency] = [], backend: BuildBackend) {
         self.directoryURL = directoryURL
         self.gitVersion = gitVersion
         self.patchURL = patchURL
+        self.dependencies = dependencies
         self.backend = backend
+        ProjectNames[directoryURL.lastPathComponent] = self
     }
 
     /// An error ocurred while compiling a target.
@@ -40,15 +51,19 @@ public struct Project {
     }
 
     /// Represents the content of the build directory.
-    public var build: Build {
+    public var build: Build? {
         var buildDirs = [Target:URL]()
-        for file in (try? FileManager.default.contentsOfDirectory(at: directoryURL.appendingPathComponent("build"), includingPropertiesForKeys: nil)) ?? [] {
-            let comps = file.lastPathComponent.components(separatedBy: ".")
-            guard comps.count == 2, let sdk = Target.SystemName(rawValue: comps[0]) else {
-                continue
+        do {
+            for file in try FileManager.default.contentsOfDirectory(at: directoryURL.appendingPathComponent("build"), includingPropertiesForKeys: nil) {
+                let comps = file.lastPathComponent.components(separatedBy: ".")
+                guard comps.count == 2, let sdk = Target.SystemName(rawValue: comps[0]) else {
+                    continue
+                }
+                let archs = comps[1].components(separatedBy: "-").compactMap({ Target.Architecture(rawValue: $0) })
+                buildDirs[Target(systemName: sdk, architectures: archs)] = file 
             }
-            let archs = comps[1].components(separatedBy: "-").compactMap({ Target.Architecture(rawValue: $0) })
-            buildDirs[Target(systemName: sdk, architectures: archs)] = file 
+        } catch {
+            return nil
         }
         return Build(buildRootDirectory: directoryURL.appendingPathComponent("build"), buildDirs: buildDirs, products: backend.products)
     }
@@ -78,6 +93,22 @@ public struct Project {
     ///     - universalBuild: If set to ´true´, will target multiple architectures when they're the same SDK.
     public func compile(for targets: [Target], universalBuild: Bool = false) throws {
         
+        for dep in dependencies {
+            var project = dep.project
+            if project == nil, let name = dep.name {
+                project = ProjectNames[name]
+                if project == nil {
+                    throw Dependency.NotFoundError(dependencyName: name)
+                }
+            }
+
+            try project!.compile(for: targets, universalBuild: universalBuild)
+        }
+
+        guard directoryURL != nil else {
+            return
+        }
+
         var _targets = [Target]()
         if universalBuild {
             _targets = targets

@@ -2,76 +2,86 @@
 
 Learn how to declare and compile projects with `multibuild`. 
 
-To start, create a Swift target with ``multibuild`` as a dependency. It can be an executable or a build tool / command plugin. 
+To start, create a Swift executable target that will run when you want to compile your libraries and add `multibuild` as a dependency. I've tried creating a build tool plugin but I didn't manage to make it work.
+What I do in my Swift Package manifest is looking for Xcode frameworks in the project's directory and include them as `binaryTarget`s if they exist and if not, I download them from my server. And I use `multibuild` as part of the process of building and uploading the binaries to the server.
 
-Example of a `Package.swift` manifest for a command plugin:
+Adding `multibuild` as a dependency:
 
 ```swift
-import PackageDescription
-
 let package = Package(
     name: "build-libraries",
-    products: [
-        .plugin(name: "build-libraries", targets: ["build-libraries"])
-    ],
-
     dependencies: [
-        .package(url: "pi@gatites.no.binarios.cl:emmacold/multibuild.git", branch: "main"),
+        .package(url: "pi@gatites.no.binarios.cl:emmacold/multibuild.git", branch: "main")
     ],
-
-    targets:[
-        .plugin(
+    targets: [
+        .executableTarget(
             name: "build-libraries",
-            capability: .command(
-                intent: .custom(verb: "build-libraries", description: "Build open source libraries"),
-                permissions: [
-                    .allowNetworkConnections(scope: .unixDomainSocket, reason: "Git pull and other network operations"),
-                    .writeToPackageDirectory(reason: "Compile projects")
-                ]),
-            dependencies: [
-                .target(name: "multibuild")
-        ])
+            dependencies: ["multibuild"]),
     ]
 )
 ```
 
 ## Compiling
 
-Now in your code import `multibuild` and declare the projects to compile. To build them, call [one of the variants](project#instance-methods) of `compile(for:universalBuild:)`.
+Now in your code import `multibuild` and declare the projects to compile. You can use the ``BuildPlan`` protocol that implements a basic structure for executables. See also ``Project``.
 
-Example:
+Example with OpenSSL:
 
 ```swift
 import Foundation
-import multibuild // Import multibuild
+import multibuild
 
-let openssl = Project(
-    directoryURL: URL(fileURLWithPath: "/path/to/openssl"),
-    gitVersion: "openssl-3.0.16",           // Checkout to this tag
-    backend: Autoconf(products: [           // Build with autoconf
-        .dynamicLibrary(staticArchives: [   // Declare products
-            // Output a dynamic library merged from these two static archives
-            "libssl.a", "libcrypto.a"
-        ], includePath: "include")          // Include directory
-    ], configureArguments: { target in      // Target specific configure options
-        var args = ["disable-devcryptoeng", "-no-shared", "-no-pinshared", "-no-tests", "-static"]
-        if target.systemName == .watchos {
-            args.append("-no-asm")
+@main
+struct Plan: BuildPlan {
+
+    // Get path where to find OpenSSL from arguments
+    var rootURL: URL {
+        let args = ProcessInfo.processInfo.arguments
+        guard args.count > 1 else {
+            print("Usage: \(URL(fileURLWithPath: args[0]).lastPathComponent) <dependencies-path>")
+            exit(1)
         }
-        return args
-    }, additionalCompilerFlags: { target in // Target specific compiler flags
-        if 
-            (target.systemName == .appletvos || target.systemName == .appletvsimulator || 
-                    target.systemName == .watchos || target.systemName == .watchsimulator) {
-            return ["-DHAVE_FORK=0"]
-        } else {
-            return []
-        }
-    }))
+        return URL(string: args[1], relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath))!
+    }
 
-// Compile for all Apple platforms
-try! openssl.compile(for: .apple)
+    // Compile for all Apple platforms
+    var supportedTargets: [Target] {
+        Platform.apple.supportedTargets
+    }
 
-// Create universal frameworks
-let openSSLFrameworks: [URL] = try! openssl.build.createXcodeFrameworks(bundleIdentifierPrefix: "app.pyto")
+    // For Apple frameworks
+    var bundleIdentifierPrefix: String {
+        "app.pyto"
+    }
+
+    // Define proejcts...
+    var project: Project {
+        Project(
+            // URL of project
+            directoryURL: rootURL.appendingPathComponent("openssl"),
+            // Checkout to version 3.0.16
+            gitVersion: "openssl-3.0.16",
+            backend: Autoconf(products: [
+                // Create dynamic library from libssl.a and libcrypto.a
+                .dynamicLibrary(staticArchives: [
+                    "libssl.a", "libcrypto.a"
+                ], includePath: "include")
+            ], configureArguments: { _ in
+                // Configure arguments customizable by target
+                [
+                    "disable-devcryptoeng",
+                    "-no-shared",
+                    "-no-pinshared",
+                    "-no-tests",
+                    "-no-asm",
+                    "-static"
+                ]
+            }, additionalCompilerFlags: { _ in
+                // Compiler flags customizable by target
+                ["-DHAVE_FORK=0"]
+            }))
+
+         // You can declare more projects...
+    }
+}
 ```
