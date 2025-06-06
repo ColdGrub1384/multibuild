@@ -75,5 +75,5 @@ struct Plan: BuildPlan {
 Now you can compile your executable and run it. See ``BuildCommand`` for CLI usage information. 
 
 ```
-$ swift run build-libraries --root /path/to/my/dependencies [--target <target> ...]
+$ swift run build-libraries [--root <root>] [--target <target> ...]
 ```
