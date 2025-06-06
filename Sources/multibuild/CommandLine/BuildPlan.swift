@@ -7,7 +7,7 @@ import Foundation
 /// ```swift
 /// @main
 /// struct Plan: BuildPlan {
-///     var platform = .apple // .iOS + .macCatalyst + ...
+///     var platform: Platform = .apple // .iOS + .macCatalyst + ...
 ///     var bundleIdentifierPrefix = "app.pyto"
 /// 
 ///     var project: Project {
@@ -35,6 +35,10 @@ public protocol BuildPlan {
     /// Determines wether configuration files should be regenerated even if they exist.
     var forceConfigure: Bool { get }
 
+    /// Targets to build if they are passed to the command line arguments.
+    /// If no target is passed, will compile for ``Platform``.
+    var targets: [Target] { get }
+
     /// A project to compile. You can concatenate them to create a combined project.
     @PlanBuilder
     var project: Project { get }
@@ -53,6 +57,30 @@ public protocol BuildPlan {
     init()
 }
 
+internal extension BuildPlan {
+
+    func listTargets() {
+        var fusedTargets = [Target]()
+        for target in platform.supportedTargets {
+            if let i = fusedTargets.firstIndex(where: { $0.systemName == target.systemName }) {
+                var modifiedTarget = fusedTargets.remove(at: i)
+                for arch in target.architectures {
+                    if !modifiedTarget.architectures.contains(arch) {
+                        modifiedTarget.architectures.append(arch)
+                    }
+                }
+                fusedTargets.insert(modifiedTarget, at: i)
+            } else {
+                fusedTargets.append(target)
+            }
+        }
+
+        for target in fusedTargets {
+            print("\(target.systemName.rawValue).\(target.architectures.map({ $0.rawValue }).joined(separator: "-"))")
+        }
+    }
+}
+
 public extension BuildPlan {
 
     init() {
@@ -60,12 +88,18 @@ public extension BuildPlan {
     }
 
     static func main() throws -> Void {
+        let plan = Self()
+
         if ProcessInfo.processInfo.arguments.contains("-h") || ProcessInfo.processInfo.arguments.contains("--help") {
             print(BuildCommand.helpMessage(), to: &StandardError)
             exit(0)
         }
 
-        let plan = Self()
+        if ProcessInfo.processInfo.arguments.contains("--list-targets") {
+            plan.listTargets()
+            exit(0)
+        }
+
         try plan.project.compile(for: plan.platform.supportedTargets, forceConfigure: plan.forceConfigure)
         if plan.platform.supportedTargets.contains(where: { $0.isApple }) {
             for dep in plan.project.dependencies {
@@ -100,6 +134,35 @@ public extension BuildPlan {
         } catch {
             print(BuildCommand.fullMessage(for: error), to: &StandardError)
             exit(1)
+        }
+    }
+
+    var targets: [Target] {
+        do {
+            let command = try BuildCommand.parse()
+            var invalid: Target?
+            for target in command.targets {
+                let sameSDK = platform.supportedTargets.filter({ $0.systemName == target.systemName })
+                guard !sameSDK.isEmpty else {
+                    invalid = target
+                    break
+                }
+                for arch in target.architectures {
+                    guard sameSDK.contains(where: { $0.architectures.contains(arch) }) else {
+                        invalid = target
+                        break
+                    }
+                }
+            }
+            guard invalid == nil else {
+                print("Unsupported platform: '\(invalid!.systemName.rawValue)-\(invalid!.architectures.map({ $0.rawValue }).joined(separator: "-"))'.", to: &StandardError)
+                print("Pass '--show-targets' for a list of supported targets.", to: &StandardError)
+                exit(1)
+            }
+
+            return command.targets
+        } catch {
+            return platform.supportedTargets
         }
     }
 }

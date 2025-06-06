@@ -35,7 +35,7 @@ import multibuild
 struct Plan: BuildPlan {
 
     // Compile for all Apple platforms
-    var platform = .apple
+    var platform: Platform = .apple
 
     // For Apple frameworks
     var bundleIdentifierPrefix = "app.pyto"
@@ -75,5 +75,5 @@ struct Plan: BuildPlan {
 Now you can compile your executable and run it. See ``BuildCommand`` for CLI usage information. 
 
 ```
-$ swift run build-libraries --root /path/to/my/dependencies
+$ swift run build-libraries --root /path/to/my/dependencies [--target <target> ...]
 ```

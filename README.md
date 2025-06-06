@@ -29,7 +29,7 @@ Now you can define your projects like this:
 ```swift
 @main
 struct Plan: BuildPlan {
-    var platform = .apple
+    var platform: Platform = .apple
     var bundleIdentifierPrefix = "app.pyto"
 
 
