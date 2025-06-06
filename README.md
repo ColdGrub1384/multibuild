@@ -56,6 +56,10 @@ struct Plan: BuildPlan {
 }
 ```
 
+Build products will be located under a `build` directory inside the compiled project.
+Inside the build directory, each folder is named `sdkname.arch1`. For example, `iphoneos.arm64`.
+Xcode frameworks are also created under an `apple.universal` directory.
+
 ## CLI usage
 
 ```

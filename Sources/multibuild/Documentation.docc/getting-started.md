@@ -73,6 +73,9 @@ struct Plan: BuildPlan {
 ```
 
 Now you can compile your executable and run it. See ``BuildCommand`` for CLI usage information. 
+Build products will be located under a `build` directory inside the compiled project.
+Inside the build directory, each folder is named `sdkname.arch1`. For example, `iphoneos.arm64`.
+Xcode frameworks are also created under an `apple.universal` directory.
 
 ```
 $ swift run build-libraries [--root <root>] [--target <target> ...]
