@@ -7,7 +7,7 @@ import Foundation
 /// ```swift
 /// @main
 /// struct Plan: BuildPlan {
-///     var supportedTargets = Platform.apple.supportedTargets
+///     var platform = .apple // .iOS + .macCatalyst + ...
 ///     var bundleIdentifierPrefix = "app.pyto"
 /// 
 ///     var project: Project {
@@ -22,12 +22,12 @@ import Foundation
 public protocol BuildPlan {
 
     /// Targets to compile the projects to.
-    var supportedTargets: [Target] { get set }
+    var platform: Platform { get set }
 
     /// Bundle identifier prefix for Apple frameworks.
     var bundleIdentifierPrefix: String { get set }
 
-    /// Root directory passed to the command line arguments via the '-r' or '--root' flag.
+    /// Root directory passed to the command line arguments via the '--root' option.
     /// Can be used as a reference to find your projects.
     var rootURL: URL { get }
 
@@ -66,8 +66,8 @@ public extension BuildPlan {
         }
 
         let plan = Self()
-        try plan.project.compile(for: plan.supportedTargets, forceConfigure: plan.forceConfigure)
-        if plan.supportedTargets.contains(where: { $0.isApple }) {
+        try plan.project.compile(for: plan.platform.supportedTargets, forceConfigure: plan.forceConfigure)
+        if plan.platform.supportedTargets.contains(where: { $0.isApple }) {
             for dep in plan.project.dependencies {
                 var proj = dep.project
                 if proj == nil, let name = dep.name {

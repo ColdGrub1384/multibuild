@@ -35,7 +35,7 @@ import multibuild
 struct Plan: BuildPlan {
 
     // Compile for all Apple platforms
-    var supportedTargets = Platform.apple.supportedTargets
+    var platform = .apple
 
     // For Apple frameworks
     var bundleIdentifierPrefix = "app.pyto"

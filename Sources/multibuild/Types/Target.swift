@@ -1,5 +1,8 @@
+import ArgumentParser
+
 /// Information about the target SDK and architecture(s) we're compiling to.
-public struct Target: Hashable {
+/// Can be added to a ``Platform`` or to another target with the `+` operator.
+public struct Target: Hashable, ExpressibleByArgument {
 
     /// Architecture name.
     public enum Architecture: String {
@@ -64,5 +67,37 @@ public struct Target: Hashable {
             SystemName.appletvsimulator,
             SystemName.maccatalyst
         ].contains(systemName)
+    }
+
+    /// Initializes a target.
+    /// 
+    /// - Parameters:
+    ///     - systemName: Target SDK name.
+    ///     - architectures: List of architectures supported by the target.
+    public init(systemName: SystemName, architectures: [Architecture]) {
+        self.systemName = systemName
+        self.architectures = architectures
+    }
+
+    public init?(argument: String) {
+        let comps = argument.components(separatedBy: ".")
+        guard comps.count == 2, let systemName = SystemName(rawValue: comps[0]) else {
+            return nil
+        }
+        
+        var archs = [Architecture]()
+        for arch in comps[1].components(separatedBy: "-") {
+            guard let architecture = Architecture(rawValue: arch) else {
+                return nil
+            }
+            archs.append(architecture)
+        }
+        
+        self.systemName = systemName
+        self.architectures = archs
+    }
+
+    static func +(lhs: Target, rhs: Target) -> Platform {
+        Platform(supportedTargets: [lhs, rhs])
     }
 }

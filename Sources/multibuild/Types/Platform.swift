@@ -1,4 +1,5 @@
-/// A platform contains all the supported target of a project.
+/// A platform contains all the supported targets of a project.
+/// Can be added to another platform or a ``Target`` can be added to a platform with the `+` operator.
 public struct Platform {
 
     /// The list of the supported target.
@@ -28,10 +29,13 @@ public struct Platform {
     ])
 
     /// iOS, watchOS, tvOS and mac Catalyst combined.
-    public static let apple = Self(supportedTargets: 
-        Self.iOS.supportedTargets +
-        Self.watchOS.supportedTargets +
-        Self.tvOS.supportedTargets +
-        Self.macCatalyst.supportedTargets
-    )
+    public static let apple = 
+        Self.iOS +
+        Self.watchOS +
+        Self.tvOS +
+        Self.macCatalyst
+
+    static func +(lhs: Platform, rhs: Platform) -> Platform {
+        Platform(supportedTargets: Array(Set(lhs.supportedTargets+rhs.supportedTargets)))
+    }
 }
