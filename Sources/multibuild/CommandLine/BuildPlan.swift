@@ -5,7 +5,6 @@ import Foundation
 /// You can create a type conforming to ``BuildPlan`` and mark it with the `@main` attribute to automatically compile the defined projects.
 /// Example:
 /// ```swift
-/// 
 /// @main
 /// struct Plan: BuildPlan {
 ///     var supportedTargets = Platform.apple.supportedTargets
@@ -16,7 +15,6 @@ import Foundation
 ///         Project(...)
 ///     }
 /// }
-/// 
 /// ```
 /// 
 /// When executed, the projects will compile for ``BuildPlan/supportedTargets``.

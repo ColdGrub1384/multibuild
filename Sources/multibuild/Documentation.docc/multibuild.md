@@ -1,8 +1,9 @@
 # ``multibuild``
 
-`multibuild` is a Swift build system for compiling to multiple architectures and sdks supporting multiple build backends.
+A Swift build system for compiling to multiple architectures and sdks supporting multiple build backends.
 
-This library only supports Apple platform for the moment and not all but it will later. My goal while writting this was to provide a declarative way of compiling open source dependencies similar to SPM manifests and to provide tools for managing several targets.
+This library provides types that define projects, configurations and also a command line interface to trigger builds.
+It only supports Apple platforms for the moment and not all because that's what I'm testing against currently but I plan to add support for at least Linux / Android.
 
 See <doc:getting-started>.
 
