@@ -287,6 +287,9 @@ public struct Build {
                 ])
             }
             let xcframework = universalBuildDir.appendingPathComponent(dylibFrameworks[0].deletingPathExtension().lastPathComponent).appendingPathExtension("xcframework")
+            if FileManager.default.fileExists(atPath: xcframework.path) {
+                try FileManager.default.removeItem(at: xcframework)
+            }
             xcframeworks.append(xcframework)
             xcodebuild.arguments!.append(contentsOf: ["-output", xcframework.path])
             xcodebuild.launch()
@@ -310,6 +313,9 @@ public struct Build {
                 ])
             }
             let xcframework = universalBuildDir.appendingPathComponent(staticArchiveFrameworks[0].deletingPathExtension().lastPathComponent).appendingPathExtension("xcframework")
+            if FileManager.default.fileExists(atPath: xcframework.path) {
+                try FileManager.default.removeItem(at: xcframework)
+            }
             xcframeworks.append(xcframework)
             xcodebuild.arguments!.append(contentsOf: ["-output", xcframework.path])
             xcodebuild.launch()
@@ -345,8 +351,10 @@ public struct Build {
             }
 
             let xcframework = universalBuildDir.appendingPathComponent(libPath.components(separatedBy: "/").last ?? "").deletingPathExtension().appendingPathExtension("xcframework")
+            if FileManager.default.fileExists(atPath: xcframework.path) {
+                try FileManager.default.removeItem(at: xcframework)
+            }
             xcframeworks.append(xcframework)
-
             let xcodebuild = Process()
             xcodebuild.executableURL = URL(fileURLWithPath: "/usr/bin/xcodebuild")
             xcodebuild.arguments = ["-create-xcframework"]+librariesArgs+["-output", xcframework.path]

@@ -73,8 +73,9 @@ public struct Project {
     /// - Parameters:
     ///     - platform: The platform being compiled to with all the supported targets.
     ///     - universalBuild: If set to ´true´, will target multiple architectures when they're the same SDK.
-    public func compile(for platform: Platform, universalBuild: Bool = false) throws {
-        try compile(for: platform.supportedTargets, universalBuild: universalBuild)
+    ///     - forceConfigure: Force regenerating configuration files.
+    public func compile(for platform: Platform, universalBuild: Bool = false, forceConfigure: Bool = false) throws {
+        try compile(for: platform.supportedTargets, universalBuild: universalBuild, forceConfigure: forceConfigure)
     }
 
     /// Compiles the project for a given target.
@@ -82,8 +83,9 @@ public struct Project {
     /// - Parameters:
     ///     - target: The target being compiled to.
     ///     - universalBuild: If set to ´true´, will target multiple architectures when they're the same SDK.
-    public func compile(for target: Target, universalBuild: Bool = false) throws {
-        try compile(for: [target], universalBuild: universalBuild)
+    ///     - forceConfigure: Force regenerating configuration files.
+    public func compile(for target: Target, universalBuild: Bool = false, forceConfigure: Bool = false) throws {
+        try compile(for: [target], universalBuild: universalBuild, forceConfigure: forceConfigure)
     }
 
     /// Compiles the project for a given list of targets.
@@ -91,7 +93,8 @@ public struct Project {
     /// - Parameters:
     ///     - targets: List of targets being compiled to.
     ///     - universalBuild: If set to ´true´, will target multiple architectures when they're the same SDK.
-    public func compile(for targets: [Target], universalBuild: Bool = false) throws {
+    ///     - forceConfigure: Force regenerating configuration files.
+    public func compile(for targets: [Target], universalBuild: Bool = false, forceConfigure: Bool = false) throws {
         
         for dep in dependencies {
             var project = dep.project
@@ -102,7 +105,7 @@ public struct Project {
                 }
             }
 
-            try project!.compile(for: targets, universalBuild: universalBuild)
+            try project!.compile(for: targets, universalBuild: universalBuild, forceConfigure: forceConfigure)
         }
 
         guard directoryURL != nil else {
@@ -126,7 +129,7 @@ public struct Project {
             cd "\(directoryURL.path)"
             \(gitVersion != nil ? "git fetch --tags && git checkout \(gitVersion!)" : "")
             \(patchURL != nil ? "git apply \"\(patchURL!.path.replacingOccurrences(of: "\"", with: "\\\""))\"" : "")
-            \(backend.buildScript(for: target))
+            \(backend.buildScript(for: target, forceConfigure: forceConfigure))
             """.write(to: buildScriptURL, atomically: false, encoding: .utf8)
 
             let process = Process()

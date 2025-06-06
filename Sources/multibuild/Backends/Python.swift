@@ -1,3 +1,4 @@
+/// Building Python wheels.
 public struct Python: BuildBackend {
 
     public var products: [Product]
@@ -14,7 +15,7 @@ public struct Python: BuildBackend {
         [:]
     }
 
-    public func buildScript(for target: Target) -> String {
+    public func buildScript(for target: Target, forceConfigure: Bool) -> String {
         ""
     }
 }

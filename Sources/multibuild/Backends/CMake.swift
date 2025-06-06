@@ -1,5 +1,6 @@
 import Foundation
 
+/// Generating and running Makefiles with CMake.
 public struct CMake: BuildBackend {
 
     public var options: ((Target) -> [String:String])
@@ -21,7 +22,7 @@ public struct CMake: BuildBackend {
         [:]
     }
 
-    public func buildScript(for target: Target) -> String {
+    public func buildScript(for target: Target, forceConfigure: Bool) -> String {
         
         var options = ["ARCHS": target.architectures.map({ $0.rawValue }).joined(separator: ";")]
         if target.isApple {
@@ -31,13 +32,19 @@ public struct CMake: BuildBackend {
             options[option.key] = option.value
         }
 
+        let buildDir = outputDirectoryPath(for: target)
         return """
-        mkdir -p "\(outputDirectoryPath(for: target))" &&
-        cmake -B "\(outputDirectoryPath(for: target))" \(options.map({
-            "-D\($0.key)='\($0.value)'"
-        }).joined(separator: " ")) &&
-        cd "\(outputDirectoryPath(for: target))" &&
-        make
+        mkdir -p "\(buildDir)"
+        if [ -f "\(buildDir)/Makefile" ] && [ "\(forceConfigure)" = "false" ]; then
+            cd "\(buildDir)" &&
+            make
+        else
+            cmake -B "\(buildDir)" \(options.map({
+                "-D\($0.key)='\($0.value)'"
+            }).joined(separator: " ")) &&
+            cd "\(buildDir)" &&
+            make
+        fi
         """
     }
 }

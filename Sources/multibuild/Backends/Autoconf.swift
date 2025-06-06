@@ -1,12 +1,12 @@
 import MachO
 import Foundation
 
-/// Generating Makefiles with Autoconf.
+/// Generating and running Makefiles with Autoconf.
 public struct Autoconf: BuildBackend {
 
     /// Target specific flags passed to the compiler.
     public var additionalCompilerFlags: ((Target) -> [String])?
-    
+
     /// Target specific flags passed to the configure script.
     public var configureArguments: ((Target) -> [String])?
 
@@ -40,7 +40,7 @@ public struct Autoconf: BuildBackend {
         [:]
     }
 
-    public func buildScript(for target: Target) -> String {
+    public func buildScript(for target: Target, forceConfigure: Bool) -> String {
         var flags = (additionalCompilerFlags?(target) ?? []).map({
             "\($0.replacingOccurrences(of: "\"", with: "\\\""))"
         }).joined(separator: " ")
@@ -95,7 +95,7 @@ public struct Autoconf: BuildBackend {
             "$PROJECT_DIR/autogen.sh" --disable-dependency-tracking -target $TARGET_TRIPLE
         fi
 
-        if [ -f "Makefile" ]; then
+        if [ -f "Makefile" ] && [ "\(forceConfigure)" = "false" ]; then
              \(makeCall)
         else
             $configure_path \(arguments) --prefix="$PWD/../../build/$PLATFORM.$ARCHITECTURE" &&

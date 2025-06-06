@@ -28,9 +28,10 @@ public protocol BuildBackend {
     /// 
     /// - Parameters:
     ///     - target: Target we're compiling to.
+    ///     - forceConfigure: Force regenerating configuration files.
     /// 
     /// - Returns: A bash script as plain code.
-    func buildScript(for target: Target) -> String
+    func buildScript(for target: Target, forceConfigure: Bool) -> String
 }
 
 internal extension BuildBackend {

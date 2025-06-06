@@ -8,18 +8,24 @@ See <doc:getting-started>.
 
 ## Topics
 
-### Types
+### Configuring a project
 
 - ``Build``
-- ``BuildBackend``
 - ``Framework``
 - ``Product``
 - ``Platform``
 - ``Project``
 - ``Target``
 
-### Build systems
+### Command line interface
 
+- ``BuildCommand``
+- ``BuildPlan``
+- ``PlanBuilder``
+
+### Build backend systems
+
+- ``BuildBackend``
 - ``Autoconf``
 - ``CMake``
 - ``Python``

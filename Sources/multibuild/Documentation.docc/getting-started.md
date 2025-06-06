@@ -23,7 +23,7 @@ let package = Package(
 
 ## Compiling
 
-Now in your code import `multibuild` and declare the projects to compile. You can use the ``BuildPlan`` protocol that implements a basic structure for executables. See also ``Project``.
+Now in your code import `multibuild` and declare the projects to compile. You can use the ``BuildPlan`` protocol that implements a command line interface for building your projects. See also ``Project``.
 
 Example with OpenSSL:
 
@@ -34,30 +34,16 @@ import multibuild
 @main
 struct Plan: BuildPlan {
 
-    // Get path where to find OpenSSL from arguments
-    var rootURL: URL {
-        let args = ProcessInfo.processInfo.arguments
-        guard args.count > 1 else {
-            print("Usage: \(URL(fileURLWithPath: args[0]).lastPathComponent) <dependencies-path>")
-            exit(1)
-        }
-        return URL(string: args[1], relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath))!
-    }
-
     // Compile for all Apple platforms
-    var supportedTargets: [Target] {
-        Platform.apple.supportedTargets
-    }
+    var supportedTargets = Platform.apple.supportedTargets
 
     // For Apple frameworks
-    var bundleIdentifierPrefix: String {
-        "app.pyto"
-    }
+    var bundleIdentifierPrefix = "app.pyto"
 
     // Define proejcts...
     var project: Project {
         Project(
-            // URL of project
+            // URL of project, computed from the --root flag
             directoryURL: rootURL.appendingPathComponent("openssl"),
             // Checkout to version 3.0.16
             gitVersion: "openssl-3.0.16",
@@ -84,4 +70,10 @@ struct Plan: BuildPlan {
          // You can declare more projects...
     }
 }
+```
+
+Now you can compile your executable and run it. See ``BuildCommand`` for CLI usage information. 
+
+```
+$ swift run build-libraries --root /path/to/my/dependencies
 ```
