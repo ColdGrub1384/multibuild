@@ -17,7 +17,7 @@ import Foundation
 /// }
 /// ```
 /// 
-/// When executed, the projects will compile for ``BuildPlan/supportedTargets``.
+/// When executed, the projects will compile for ``BuildPlan/platform``.
 /// See ``BuildCommand`` for more command line usage information.
 public protocol BuildPlan {
 
