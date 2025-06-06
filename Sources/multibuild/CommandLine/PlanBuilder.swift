@@ -1,4 +1,4 @@
-/// Block result build for projects. See ``BuildPlan`.`
+/// Block result builder for projects. See ``BuildPlan``.
 @resultBuilder
 public struct PlanBuilder {
     public static func buildBlock(_ components: Project...) -> Project {
