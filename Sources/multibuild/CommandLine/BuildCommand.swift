@@ -7,7 +7,7 @@ import Foundation
 /// 
 /// ```
 /// OVERVIEW: Command line interface for building your projects.
-
+///
 /// USAGE: build-libraries [--root <root>] [--list-targets] [--list-projects] [--force-configure] [--target <target> ...] [--projects <projects> ...]
 ///
 /// OPTIONS:
