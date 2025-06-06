@@ -11,7 +11,7 @@ Adding `multibuild` as a dependency:
 let package = Package(
     name: "build-libraries",
     dependencies: [
-        .package(url: "pi@gatites.no.binarios.cl:emmacold/multibuild.git", branch: "main")
+        .package(url: "pi@gatites.no.binarios.cl:emma/multibuild.git", branch: "main")
     ],
     targets: [
         .executableTarget(
