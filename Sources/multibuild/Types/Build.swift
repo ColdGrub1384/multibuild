@@ -18,15 +18,19 @@ public struct Build {
         Array<Target>(buildDirs.keys)
     }
 
-    private var buildDirs: [Target:URL]
+    internal var buildDirs: [Target:URL]
 
     /// Root build directory.
     public var buildRootDirectory: URL
 
+    /// Directory containing universal Xcode frameworks created from declared dynamic libraries.
+    public var appleUniversalBuildDirectoryURL: URL?
+
     private var products: [Product]
 
-    internal init(buildRootDirectory: URL, buildDirs: [Target:URL], products: [Product]) {
+    internal init(buildRootDirectory: URL, appleUniversalBuildDirectoryURL: URL?, buildDirs: [Target:URL], products: [Product]) {
         self.buildRootDirectory = buildRootDirectory
+        self.appleUniversalBuildDirectoryURL = appleUniversalBuildDirectoryURL
         self.buildDirs = buildDirs
         self.products = products
     }
@@ -97,7 +101,13 @@ public struct Build {
                 let buildDir = buildRootDirectory.appendingPathComponent("\(systemName.rawValue)-universal")
                 var output = buildDir.appendingPathComponent(urls[0].lastPathComponent)
                 if output.pathExtension == "framework" {
-                    output.appendPathComponent(output.deletingPathExtension().lastPathComponent)
+                    if systemName == .maccatalyst {
+                        let fworkName = output.deletingPathExtension().lastPathComponent
+                        output.appendPathComponent("Versions/Current")
+                        output.appendPathComponent(fworkName)
+                    } else {
+                        output.appendPathComponent(output.deletingPathExtension().lastPathComponent)
+                    }
                 }
 
                 try? FileManager.default.createDirectory(at: buildDir, withIntermediateDirectories: true)
@@ -111,12 +121,27 @@ public struct Build {
                     "-create",
                     "-output", output.path
                 ]
+                var baseFramework: URL?
                 for url in urls {
                     if url.pathExtension == "framework" {
                         lipo.arguments?.append(url.appendingPathComponent(url.deletingPathExtension().lastPathComponent).path)
+                        baseFramework = url
                     } else {
                         lipo.arguments?.append(url.path)
                     }
+                }
+
+                if let baseFramework {
+                    let universalFrameworkURL: URL
+                    if systemName == .maccatalyst {
+                        universalFrameworkURL = output.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+                    } else {
+                        universalFrameworkURL = output.deletingLastPathComponent()
+                    }
+                    if FileManager.default.fileExists(atPath: universalFrameworkURL.path) {
+                        try FileManager.default.removeItem(at: universalFrameworkURL)
+                    }
+                    try FileManager.default.copyItem(at: baseFramework, to: universalFrameworkURL)
                 }
 
                 lipo.launch()
@@ -128,6 +153,10 @@ public struct Build {
 
                 if output.deletingLastPathComponent().pathExtension == "framework" {
                     output.deleteLastPathComponent()
+                } else if systemName == .maccatalyst {
+                    for _ in 0..<3 {
+                        output.deleteLastPathComponent()
+                    }
                 }
                 newURLs.append(output)
             }
@@ -163,6 +192,7 @@ public struct Build {
         var staticArchivesToMergeIntoOneDylib = [Product]()
         var staticArchives = [Product]()
         var dynamicLibraries = [Product]()
+        var frameworks = [Product]()
 
         for product in products {
             switch product.kind {
@@ -177,6 +207,8 @@ public struct Build {
                     } else {
                         staticArchives.append(product)
                     }
+                case .framework:
+                    frameworks.append(product)
             }
         }
 
@@ -216,7 +248,7 @@ public struct Build {
                     for libPath in staticArchive.libraryPaths {
                         process.arguments!.append(contentsOf: [
                             "-force_load",
-                            directory.appendingPathComponent(libPath).path
+                            directory.appendingPathComponent(libPath).resolvingSymlinksInPath().path
                         ])
                     }
                     if let includePath = staticArchive.includePath {
@@ -252,8 +284,7 @@ public struct Build {
                 try FileManager.default.removeItem(at: libraryMainURL)
 
                 let framework = Framework(binaryURL: directory.appendingPathComponent(fworkName), includeURLs: includeURLs, headersURLs: headersURLs, bundleIdentifierPrefix: bundleIdentifierPrefix)
-                try framework.write(to: directory)
-                staticArchiveFrameworks.append(directory.appendingPathComponent(fworkName).appendingPathExtension("framework"))
+                staticArchiveFrameworks.append(try framework.write(to: directory))
                 try FileManager.default.removeItem(at: directory.appendingPathComponent(fworkName))
             }
         }
@@ -263,12 +294,12 @@ public struct Build {
                 continue
             }
             for (_, directory) in buildDirs {
-                let dylibURL = directory.appendingPathComponent(libPath)
+                
+                let dylibURL = directory.appendingPathComponent(libPath).resolvingSymlinksInPath()
                 let includeURL = dylib.includePath == nil ? nil : directory.appendingPathComponent(dylib.includePath!)
 
                 let framework = Framework(binaryURL: dylibURL, includeURLs: includeURL == nil ? [] : [includeURL!], bundleIdentifierPrefix: bundleIdentifierPrefix)
-                try framework.write(to: directory)
-                dylibFrameworks.append(directory.appendingPathComponent(dylibURL.lastPathComponent).appendingPathExtension("framework"))
+                dylibFrameworks.append(try framework.write(to: directory))
             }
         }
 
@@ -318,6 +349,41 @@ public struct Build {
             }
             xcframeworks.append(xcframework)
             xcodebuild.arguments!.append(contentsOf: ["-output", xcframework.path])
+            xcodebuild.launch()
+            xcodebuild.waitUntilExit()
+
+            if xcodebuild.terminationStatus != 0 {
+                throw MergeError(programName: "xcodebuild", exitCode: Int(xcodebuild.terminationStatus))
+            }
+        }
+        
+        for framework in frameworks {
+            guard let fworkPath = framework.libraryPaths.first else {
+                continue
+            }
+            
+            var frameworksArgs = [String]()
+            var frameworks = [URL]()
+
+            for (_, directory) in buildDirs {
+                frameworks.append(directory.appendingPathComponent(fworkPath))
+            }
+            try merge(urls: &frameworks)
+
+            for framework in frameworks {
+                frameworksArgs.append(contentsOf: [
+                    "-framework", framework.path
+                ])
+            }
+
+            let xcframework = universalBuildDir.appendingPathComponent(fworkPath.components(separatedBy: "/").last ?? "").deletingPathExtension().appendingPathExtension("xcframework")
+            if FileManager.default.fileExists(atPath: xcframework.path) {
+                try FileManager.default.removeItem(at: xcframework)
+            }
+            xcframeworks.append(xcframework)
+            let xcodebuild = Process()
+            xcodebuild.executableURL = URL(fileURLWithPath: "/usr/bin/xcodebuild")
+            xcodebuild.arguments = ["-create-xcframework"]+frameworksArgs+["-output", xcframework.path]
             xcodebuild.launch()
             xcodebuild.waitUntilExit()
 

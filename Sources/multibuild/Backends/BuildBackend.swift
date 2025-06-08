@@ -7,6 +7,7 @@ public protocol BuildBackend {
     var products: [Product] { get set }
 
     /// Output directory path.
+    /// Default value is "build/<sdk>.arch1(-arch2)".
     /// 
     /// Parameters:
     ///     - target: Target to find.
@@ -15,6 +16,7 @@ public protocol BuildBackend {
     func outputDirectoryPath(for target: Target) -> String
 
     /// Additional environment variables to set during compilation.
+    /// Default value is an empty dictionary.
     /// 
     /// - Note: Will be pasted as is and evaluated by bash. 
     ///
@@ -34,8 +36,18 @@ public protocol BuildBackend {
     func buildScript(for target: Target, forceConfigure: Bool) -> String
 }
 
+public extension BuildBackend {
+    func outputDirectoryPath(for target: Target) -> String {
+        "build/\(target.systemName.rawValue).\(target.architectures.map({ $0.rawValue }).joined(separator: "-"))"
+    }
+
+    func environment(for target: Target) -> [String : String] {
+        [:]
+    }
+}
+
 internal extension BuildBackend {
-    
+
     func defaultEnvironment(for target: Target) -> [String:String] {
         var flags = [String:String]()
         switch target.systemName {

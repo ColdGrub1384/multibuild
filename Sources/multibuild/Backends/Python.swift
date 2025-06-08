@@ -3,7 +3,7 @@ public struct Python: BuildBackend {
 
     public var products: [Product]
 
-    public init(products: [Product]) {
+    public init(products: [Product] = []) {
         self.products = products
     }
 

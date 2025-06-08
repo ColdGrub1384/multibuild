@@ -56,8 +56,10 @@ struct Plan: BuildPlan {
 }
 ```
 
+## Directory structure
+
 Build products will be located under a `build` directory inside the compiled project.
-Inside the build directory, each folder is named `sdkname.arch1`. For example, `iphoneos.arm64`.
+Inside the build directory, each folder is named `sdkname.arch1`. For example, `iphoneos.arm64`. These name correspond to targets you can pass to the cli program.
 Xcode frameworks are also created under an `apple.universal` directory.
 
 ## CLI usage
@@ -65,15 +67,15 @@ Xcode frameworks are also created under an `apple.universal` directory.
 ```
 OVERVIEW: Command line interface for building your projects.
 
-USAGE: build-libraries [--root <root>] [--list-targets] [--list-projects] [--force-configure] [--target <target> ...] [--projects <projects> ...]
+USAGE: build-libraries [--root <root>] [--list-targets] [--list-projects] [--no-compile] [--force-configure] [--target <target> ...] [--project <project> ...]
 
 OPTIONS:
   --root <root>           Common root directory of projects. (defaults to working directory)
-  --list-targets          List supported compilation targets.
-  --list-projects         List declared projects.
+  --list-targets          List supported compilation targets and exit.
+  --list-projects         List declared projects and exit.
+  --no-compile            Skip recompilation and only perform packaging operations.
   -f, --force-configure   Force regenerating Makefiles and other configurations.
   -t, --target <target>   Specify a target to build
-  -p, --projects <projects>
-                          Specify a project to build
+  -p, --project <project> Specify a project to build
   -h, --help              Show help information.
 ```

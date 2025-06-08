@@ -118,7 +118,7 @@ public struct Framework {
             guard FileManager.default.fileExists(atPath: file.path, isDirectory: &isDir) else {
                 continue
             }
-            if file.pathExtension == "h" || file.pathExtension == "hpp" {
+            if file.pathExtension == "h" || file.pathExtension == "hpp" || file.pathExtension == "hh" {
                 let destFile = dest.appendingPathComponent(file.lastPathComponent)
                 if !FileManager.default.fileExists(atPath: destFile.path) {
                     try FileManager.default.copyItem(at: file, to: destFile)
@@ -133,13 +133,29 @@ public struct Framework {
         }
     }
 
+    internal  static func frameworkify(_ url: URL) -> String {
+        var binaryName = url.deletingPathExtension().lastPathComponent
+        if binaryName.hasPrefix("lib") {
+            binaryName = String(binaryName.dropFirst(3))
+        }
+        binaryName = binaryName.components(separatedBy: ".").first ?? binaryName
+        return binaryName
+    }
+
     /// Creates the framework in a given location.
     /// 
     /// - Parameters:
     ///     - url: URL of the directory or the absolute framework URL.
-    public func write(to url: URL) throws {
+    /// 
+    /// - Returns: The URL of the framework.
+    public func write(to url: URL) throws -> URL {
+        if url.resolvingSymlinksInPath() != url {
+            return try write(to: url.resolvingSymlinksInPath())
+        }
+
         guard let infoPlist = Bundle.module.url(forResource: "Environment/Info", withExtension: "plist") else {
-            return
+            print("Environment/Info.plist not found!", to: &StandardError)
+            exit(1)
         }
 
         let plainName = binaryURL.lastPathComponent
@@ -147,15 +163,17 @@ public struct Framework {
                                     .replacingOccurrences(of: " ", with: "")
                                     .replacingOccurrences(of: ".", with: "")
 
+        let binaryName = Self.frameworkify(binaryURL)
+
         var content = try String(contentsOf: infoPlist)
         content = content.replacingOccurrences(of: "%BUNDLE_ID%", with: "\(bundleIdentifierPrefix).\(plainName)")
-        content = content.replacingOccurrences(of: "%NAME%", with: binaryURL.lastPathComponent)
+        content = content.replacingOccurrences(of: "%NAME%", with: binaryName)
         content = content.replacingOccurrences(of: "%MINIMUM_OS_VERSION%", with: minimumOSVersion ?? "")
         content = content.replacingOccurrences(of: "%PLATFORM%", with: platformString ?? "")
 
         var frameworkURL = url
         if frameworkURL.pathExtension != "framework" {
-            frameworkURL = frameworkURL.appendingPathComponent(binaryURL.lastPathComponent).appendingPathExtension("framework")
+            frameworkURL = frameworkURL.appendingPathComponent(binaryName).appendingPathExtension("framework")
         }
         if FileManager.default.fileExists(atPath: frameworkURL.path) {
             try FileManager.default.removeItem(at: frameworkURL)
@@ -167,8 +185,8 @@ public struct Framework {
             let resourcesURL = versionURL.appendingPathComponent("Resources")
             try FileManager.default.createDirectory(at: resourcesURL, withIntermediateDirectories: true)
 
-            try FileManager.default.copyItem(at: binaryURL, to: versionURL.appendingPathComponent(binaryURL.lastPathComponent))
-            rewriteInstallName(binaryURL: versionURL.appendingPathComponent(binaryURL.lastPathComponent))
+            try FileManager.default.copyItem(at: binaryURL, to: versionURL.appendingPathComponent(binaryName))
+            rewriteInstallName(binaryURL: versionURL.appendingPathComponent(binaryName))
             try content.write(to: resourcesURL.appendingPathComponent("Info.plist"), atomically: false, encoding: .utf8)
 
             if includeURLs.count > 0 || self.headersURLs.count > 0 {
@@ -183,12 +201,12 @@ public struct Framework {
                 try FileManager.default.createSymbolicLink(atPath: frameworkURL.appendingPathComponent("Headers").path, withDestinationPath: "Versions/A/Headers")
             }
 
-            try FileManager.default.createSymbolicLink(atPath: frameworkURL.appendingPathComponent(binaryURL.lastPathComponent).path, withDestinationPath: "Versions/A/\(binaryURL.lastPathComponent)")
+            try FileManager.default.createSymbolicLink(atPath: frameworkURL.appendingPathComponent(binaryName).path, withDestinationPath: "Versions/A/\(binaryName)")
             try FileManager.default.createSymbolicLink(atPath: frameworkURL.appendingPathComponent("Resources").path, withDestinationPath: "Versions/A/Resources")
             try FileManager.default.createSymbolicLink(atPath: frameworkURL.appendingPathComponent("Versions/Current").path, withDestinationPath: "A")
         } else {
-            try FileManager.default.copyItem(at: binaryURL, to: frameworkURL.appendingPathComponent(binaryURL.lastPathComponent))
-            rewriteInstallName(binaryURL: frameworkURL.appendingPathComponent(binaryURL.lastPathComponent))
+            try FileManager.default.copyItem(at: binaryURL, to: frameworkURL.appendingPathComponent(binaryName))
+            rewriteInstallName(binaryURL: frameworkURL.appendingPathComponent(binaryName))
             try content.write(to: frameworkURL.appendingPathComponent("Info.plist"), atomically: false, encoding: .utf8)
             if includeURLs.count > 0 || self.headersURLs.count > 0 {
                 let headersURL = frameworkURL.appendingPathComponent("Headers")
@@ -201,5 +219,7 @@ public struct Framework {
                 }
             }
         }
+
+        return frameworkURL
     }
 }

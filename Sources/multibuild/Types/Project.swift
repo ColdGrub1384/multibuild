@@ -1,6 +1,7 @@
 import Foundation
 
-var ProjectNames = [String:Project]()
+internal var ProjectNames = [String:Project]()
+internal var BuiltProjects = [URL]()
 
 /// Structure representing any project to compile.
 public struct Project {
@@ -19,6 +20,12 @@ public struct Project {
 
     /// Dependencies to build before compiling.
     public var dependencies: [Dependency]
+
+    internal var willBuild: ((Target) throws -> Void)?
+
+    internal var didBuild: ((Target, Error?) throws -> Void)?
+
+    internal var _build: Build?
 
     internal init(projects: [Project]) {
         self.dependencies = projects.map({ Dependency.project($0) })
@@ -40,6 +47,32 @@ public struct Project {
         ProjectNames[directoryURL.lastPathComponent] = self
     }
 
+    /// Set a block called before building.
+    /// 
+    /// - Parameters:
+    ///     - block: Called before building. Takes the target being compiled to as parameter.
+    /// 
+    /// - Returns: A Project instance that calls `block` before compiling.
+    public func willBuild(_ block: ((Target) throws -> Void)?) -> Project {
+        var proj = self
+        proj.willBuild = block
+        ProjectNames[directoryURL.lastPathComponent] = proj
+        return proj
+    }
+
+    /// Set a block called after building.
+    /// 
+    /// - Parameters:
+    ///     - block: Called after building. Takes the target being compiled to and an optional error as parameters.
+    /// 
+    /// - Returns: A Project instance that calls `block` after compiling.
+    public func didBuild(_ block: ((Target, Error?) throws -> Void)?) -> Project {
+        var proj = self
+        proj.didBuild = block
+        ProjectNames[directoryURL.lastPathComponent] = proj
+        return proj
+    }
+
     /// An error ocurred while compiling a target.
     public struct CompileError: Error {
 
@@ -52,9 +85,22 @@ public struct Project {
 
     /// Represents the content of the build directory.
     public var build: Build? {
+        if let _build {
+            return _build
+        }
+
+        guard directoryURL != nil else {
+            return nil
+        }
+
         var buildDirs = [Target:URL]()
+        var appleUniversalBuildDirectoryURL: URL?
         do {
             for file in try FileManager.default.contentsOfDirectory(at: directoryURL.appendingPathComponent("build"), includingPropertiesForKeys: nil) {
+                if file.lastPathComponent == "apple.universal" {
+                    appleUniversalBuildDirectoryURL = file
+                    continue
+                }
                 let comps = file.lastPathComponent.components(separatedBy: ".")
                 guard comps.count == 2, let sdk = Target.SystemName(rawValue: comps[0]) else {
                     continue
@@ -65,7 +111,7 @@ public struct Project {
         } catch {
             return nil
         }
-        return Build(buildRootDirectory: directoryURL.appendingPathComponent("build"), buildDirs: buildDirs, products: backend.products)
+        return Build(buildRootDirectory: directoryURL.appendingPathComponent("build"), appleUniversalBuildDirectoryURL: appleUniversalBuildDirectoryURL, buildDirs: buildDirs, products: backend.products)
     }
 
     /// Compiles the project for a given platform.
@@ -95,23 +141,6 @@ public struct Project {
     ///     - universalBuild: If set to ´true´, will target multiple architectures when they're the same SDK.
     ///     - forceConfigure: Force regenerating configuration files.
     public func compile(for targets: [Target], universalBuild: Bool = false, forceConfigure: Bool = false) throws {
-        
-        for dep in dependencies {
-            var project = dep.project
-            if project == nil, let name = dep.name {
-                project = ProjectNames[name]
-                if project == nil {
-                    throw Dependency.NotFoundError(dependencyName: name)
-                }
-            }
-
-            try project!.compile(for: targets, universalBuild: universalBuild, forceConfigure: forceConfigure)
-        }
-
-        guard directoryURL != nil else {
-            return
-        }
-
         var _targets = [Target]()
         if universalBuild {
             _targets = targets
@@ -123,7 +152,50 @@ public struct Project {
             }
         }
 
+        for dep in dependencies {
+            var project = dep.project
+            if project == nil, let name = dep.name {
+                project = ProjectNames[name]
+                if project == nil {
+                    throw Dependency.NotFoundError(dependencyName: name)
+                }
+            }
+
+            guard !BuiltProjects.contains(project!.directoryURL) else {
+                continue
+            }
+
+            // Build only if products are not present
+            var compile = forceConfigure
+            if project!.backend.products.isEmpty {
+                compile = true
+            }
+            for product in project!.backend.products {
+                for path in product.libraryPaths {
+                    for target in _targets {
+                        guard let url = project!.build?.buildDirectoryURL(for: target)?.appendingPathComponent(path) else {
+                            compile = true
+                            break
+                        }
+                        if !FileManager.default.fileExists(atPath: url.path) {
+                            compile = true
+                            break
+                        }
+                    }
+                }
+            }
+            if compile {
+                try project!.compile(for: targets, universalBuild: universalBuild, forceConfigure: forceConfigure)
+            }
+        }
+
+        guard directoryURL != nil else {
+            return
+        }
+
         for target in _targets {
+            try willBuild?(target)
+
             let buildScriptURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("\(UUID().uuidString).sh")
             try """
             cd "\(directoryURL.path)"
@@ -162,8 +234,14 @@ public struct Project {
             }
 
             if process.terminationStatus != 0 {
-                throw CompileError(exitCode: Int(process.terminationStatus), target: target)
+                let error = CompileError(exitCode: Int(process.terminationStatus), target: target)
+                try didBuild?(target, error)
+                throw error
             }
+
+            try didBuild?(target, nil)
         }
+
+        BuiltProjects.append(directoryURL)
     }
 }

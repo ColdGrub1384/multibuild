@@ -32,14 +32,6 @@ public struct Autoconf: BuildBackend {
 
     public var products: [Product]
 
-    public func outputDirectoryPath(for target: Target) -> String {
-        "build/\(target.systemName.rawValue).\(target.architectures.map({ $0.rawValue }).joined(separator: "-"))"
-    }
-
-    public func environment(for target: Target) -> [String : String] {
-        [:]
-    }
-
     public func buildScript(for target: Target, forceConfigure: Bool) -> String {
         var flags = (additionalCompilerFlags?(target) ?? []).map({
             "\($0.replacingOccurrences(of: "\"", with: "\\\""))"

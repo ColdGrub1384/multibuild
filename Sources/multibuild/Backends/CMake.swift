@@ -7,19 +7,11 @@ public struct CMake: BuildBackend {
 
     public var products: [Product]
 
-    public init(products: [Product], options: ((Target) -> [String:String])? = nil) {
+    public init(products: [Product] = [], options: ((Target) -> [String:String])? = nil) {
         self.products = products
         self.options = options ?? { _ in
             [:]
         }
-    } 
-
-    public func outputDirectoryPath(for target: Target) -> String {
-        "build/\(target.systemName.rawValue).\(target.architectures.map({ $0.rawValue }).joined(separator: "-"))"
-    }
-
-    public func environment(for target: Target) -> [String : String] {
-        [:]
     }
 
     public func buildScript(for target: Target, forceConfigure: Bool) -> String {
