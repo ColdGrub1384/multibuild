@@ -1,12 +1,18 @@
 import Foundation
 
 /// Generating and running Makefiles with CMake.
-public struct CMake: BuildBackend {
+public struct CMake: Builder {
 
+    /// CMake options from a target being compiled to.
     public var options: ((Target) -> [String:String])
 
     public var products: [Product]
 
+    /// Initializes a CMake builder.
+    /// 
+    /// - Parameters:
+    ///     - products: List of known products used for packaging operations.
+    ///     - options: CMake options from a target being compiled to.
     public init(products: [Product] = [], options: ((Target) -> [String:String])? = nil) {
         self.products = products
         self.options = options ?? { _ in

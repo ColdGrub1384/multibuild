@@ -47,7 +47,7 @@ struct Plan: BuildPlan {
             directoryURL: rootURL.appendingPathComponent("openssl"),
             // Checkout to version 3.0.16
             gitVersion: "openssl-3.0.16",
-            backend: Autoconf(products: [
+            builder: Autoconf(products: [
                 // Create dynamic library from libssl.a and libcrypto.a
                 .dynamicLibrary(staticArchives: [
                     "libssl.a", "libcrypto.a"
@@ -86,13 +86,13 @@ Xcode frameworks are also created under an `apple.universal` directory.
 
 ## Referencing products
 
-Let's say we are compiling `libssh2` and it depends on `openssl`. In this case we can find the `openssl` build directory and pass it to our CMake options. When building for Apple platforms, `multibuild` will make frameworks from dynamic libraries declared in ``BuildBackend/products`` for us so we can link directly to the target specific framework instead of having to search for the correct subfolder in the Xcode framework inside ``Build/appleUniversalBuildDirectoryURL``. On other other platforms, you should link directly to the shared or static library.
+Let's say we are compiling `libssh2` and it depends on `openssl`. In this case we can find the `openssl` build directory and pass it to our CMake options. When building for Apple platforms, `multibuild` will make frameworks from dynamic libraries declared in ``Builder/products`` for us so we can link directly to the target specific framework instead of having to search for the correct subfolder in the Xcode framework inside ``Build/appleUniversalBuildDirectoryURL``. On other other platforms, you should link directly to the shared or static library.
 
 ```swift
 Project(
     directoryURL: rootURL.appendingPathComponent("libssh2"),
     dependencies: [.name("openssl")], // openssl must be compiled before
-    backend: CMake(products: [
+    builder: CMake(products: [
         .dynamicLibrary("src/libssh2.dylib", includePath: "../../include")
     ], options: { target in
         var opts = [...]

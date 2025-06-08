@@ -1,9 +1,9 @@
 import Foundation
 
-/// Represents a backend build system.
-public protocol BuildBackend {
+/// Represents a build system.
+public protocol Builder {
 
-    /// Products of the compilation.
+    /// List of known products. Is used for packaging operations such as generating Apple frameworks.
     var products: [Product] { get set }
 
     /// Output directory path.
@@ -36,7 +36,7 @@ public protocol BuildBackend {
     func buildScript(for target: Target, forceConfigure: Bool) -> String
 }
 
-public extension BuildBackend {
+public extension Builder {
     func outputDirectoryPath(for target: Target) -> String {
         "build/\(target.systemName.rawValue).\(target.architectures.map({ $0.rawValue }).joined(separator: "-"))"
     }
@@ -46,7 +46,7 @@ public extension BuildBackend {
     }
 }
 
-internal extension BuildBackend {
+internal extension Builder {
 
     func defaultEnvironment(for target: Target) -> [String:String] {
         var flags = [String:String]()

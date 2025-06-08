@@ -2,7 +2,7 @@ import MachO
 import Foundation
 
 /// Generating and running Makefiles with Autoconf.
-public struct Autoconf: BuildBackend {
+public struct Autoconf: Builder {
 
     /// Target specific flags passed to the compiler.
     public var additionalCompilerFlags: ((Target) -> [String])?
@@ -17,7 +17,7 @@ public struct Autoconf: BuildBackend {
     /// Initializes the autoconf builder.
     /// 
     /// - Parameters:
-    ///     - products: Products of the compilation.
+    ///     - products: Products of the compilation used for packaging operations.
     ///     - makeTargets: If not `nil`, will call make for all the specified targets.
     ///     - configureArguments: Target specific flags passed to the configure script.
     ///     - additionalCompilerFlags: Target specific flags passed to the compiler.
@@ -28,7 +28,7 @@ public struct Autoconf: BuildBackend {
         self.additionalCompilerFlags = additionalCompilerFlags
     }
 
-    // MARK: - Build backend
+    // MARK: - Builder
 
     public var products: [Product]
 

@@ -1,17 +1,17 @@
-/// A structure used to construct a platform dependant build backend from a target being compiled to.
-public struct TargetConditionalBackend: BuildBackend {
+/// A structure used to construct a platform dependant build system from a target being compiled to.
+public struct TargetConditionalBuilder: Builder {
 
-    /// Returns a build backend from a target being compiled to.
-    public var block: (Target) -> BuildBackend
+    /// Returns a build system from a target being compiled to.
+    public var block: (Target) -> Builder
 
     public var products: [Product]
 
-    /// Initializes a platform dependant build backend.
+    /// Initializes a platform dependant build system.
     /// 
     /// - Parameters:
-    ///     - products: Products of the compilation.
-    ///     - block: Returns a build backend from a target being compiled to.
-    public init(products: [Product], block: @escaping (Target) -> BuildBackend) {
+    ///     - products: List of known products.
+    ///     - block: Returns a build systems from a target being compiled to.
+    public init(products: [Product], block: @escaping (Target) -> Builder) {
         self.block = block
         self.products = products
     }

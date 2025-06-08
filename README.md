@@ -1,6 +1,6 @@
 # multibuild
 
-A Swift build system for compiling to multiple architectures and sdks supporting multiple build backends.
+A Swift build system for compiling to multiple architectures and sdks supporting multiple build systems.
 This library provides types that define projects, configurations and also a command line interface to trigger builds.
 
 (only supports Apple platforms for the moment and not all because that's what I'm testing against currently but I plan to add support for at least Linux / Android)
@@ -42,7 +42,7 @@ struct Plan: BuildPlan {
         Project(
             directoryURL: rootURL.appendingPathComponent("openssl"),
             gitVersion: "openssl-3.0.16",
-            backend: Autoconf(products: [
+            builder: Autoconf(products: [
                 .dynamicLibrary(staticArchives: [
                     "libssl.a", "libcrypto.a"
                 ], includePath: "include")

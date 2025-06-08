@@ -1,5 +1,5 @@
 /// Building Python wheels.
-public struct Python: BuildBackend {
+public struct Python: Builder {
 
     public var products: [Product]
 

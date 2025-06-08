@@ -1,9 +1,14 @@
 /// Building Xcode projects (Apple only).
-/// You should use a ``TargetConditionalBackend`` instance and check for ``Target/isApple`` to return an alternative build system.
-public struct Xcode: BuildBackend {
+/// You should use a ``TargetConditionalBuilder`` instance and check for ``Target/isApple`` to return an alternative build system.
+public struct Xcode: Builder {
 
+    /// Source of an Xcode build.
     public enum Source {
+
+        /// A project.
         case project(String)
+
+        /// A workspace.
         case workspace(String)
 
         internal var argument: String {
@@ -18,14 +23,27 @@ public struct Xcode: BuildBackend {
 
     public var products: [Product]
 
+    /// Source of the Xcode build.
     public var source: Source
 
+    /// Schemes to be compiled.
     public var buildSchemes: [String]
 
+    /// Targets to be compiled.
     public var buildTargets: [String]
 
+    /// Xcode configuration.
+    /// (Default value is `"Release"`)
     public var configuration: String
 
+    /// Initializes an Xcode builder.
+    /// 
+    /// - Parameters:
+    ///   - products: List of known products.
+    ///   - source: Source of the Xcode build.
+    ///   - buildSchemes: Schemes to be compiled.
+    ///   - buildTargets: Targets to be compiled.
+    ///   - configuration: Xcode configuration. (Default value is `"Release"`)
     public init(products: [Product] = [], source: Source, buildSchemes: [String] = [], buildTargets: [String] = [], configuration: String = "Release") {
         self.products = products
         self.source = source

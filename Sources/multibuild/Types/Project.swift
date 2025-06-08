@@ -15,8 +15,8 @@ public struct Project {
     /// The URL of a patch to apply before compiling. Will be undone after.
     public var patchURL: URL?
 
-    /// Backend build system.
-    public var backend: BuildBackend!
+    /// Build system.
+    public var builder: Builder!
 
     /// Dependencies to build before compiling.
     public var dependencies: [Dependency]
@@ -37,13 +37,13 @@ public struct Project {
     ///   - directoryURL: Root location of the project. 
     ///   - gitVersion: A Git branch, tag or commit to checkout out before compiling.
     ///   - patchURL: The URL of a patch to apply before compiling. Will be undone after.
-    ///   - backend: Backend build system.
-    public init(directoryURL: URL, gitVersion: String? = nil, patchURL: URL? = nil, dependencies: [Dependency] = [], backend: BuildBackend) {
+    ///   - builder: Build system.
+    public init(directoryURL: URL, gitVersion: String? = nil, patchURL: URL? = nil, dependencies: [Dependency] = [], builder: Builder) {
         self.directoryURL = directoryURL
         self.gitVersion = gitVersion
         self.patchURL = patchURL
         self.dependencies = dependencies
-        self.backend = backend
+        self.builder = builder
         ProjectNames[directoryURL.lastPathComponent] = self
     }
 
@@ -111,7 +111,7 @@ public struct Project {
         } catch {
             return nil
         }
-        return Build(buildRootDirectory: directoryURL.appendingPathComponent("build"), appleUniversalBuildDirectoryURL: appleUniversalBuildDirectoryURL, buildDirs: buildDirs, products: backend.products)
+        return Build(buildRootDirectory: directoryURL.appendingPathComponent("build"), appleUniversalBuildDirectoryURL: appleUniversalBuildDirectoryURL, buildDirs: buildDirs, products: builder.products)
     }
 
     /// Compiles the project for a given platform.
@@ -167,10 +167,10 @@ public struct Project {
 
             // Build only if products are not present
             var compile = forceConfigure
-            if project!.backend.products.isEmpty {
+            if project!.builder.products.isEmpty {
                 compile = true
             }
-            for product in project!.backend.products {
+            for product in project!.builder.products {
                 for path in product.libraryPaths {
                     for target in _targets {
                         guard let url = project!.build?.buildDirectoryURL(for: target)?.appendingPathComponent(path) else {
@@ -201,17 +201,17 @@ public struct Project {
             cd "\(directoryURL.path)"
             \(gitVersion != nil ? "git fetch --tags && git checkout \(gitVersion!)" : "")
             \(patchURL != nil ? "git apply \"\(patchURL!.path.replacingOccurrences(of: "\"", with: "\\\""))\"" : "")
-            \(backend.buildScript(for: target, forceConfigure: forceConfigure))
+            \(builder.buildScript(for: target, forceConfigure: forceConfigure))
             """.write(to: buildScriptURL, atomically: false, encoding: .utf8)
 
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/bin/bash")
-            process.environment = backend.environment(for: target)
+            process.environment = builder.environment(for: target)
             process.environment?["BUILD_SCRIPT"] = buildScriptURL.path
             for (key, value) in ProcessInfo.processInfo.environment {
                 process.environment?[key] = value
             }
-            for (key, value) in backend.defaultEnvironment(for: target) {
+            for (key, value) in builder.defaultEnvironment(for: target) {
                 process.environment?[key] = value
             }
             process.arguments = [

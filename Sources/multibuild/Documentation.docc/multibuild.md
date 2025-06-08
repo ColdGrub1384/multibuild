@@ -1,6 +1,6 @@
 # ``multibuild``
 
-A Swift build system for compiling to multiple architectures and sdks supporting multiple build backends.
+A Swift build system for compiling to multiple architectures and sdks supporting multiple build systems.
 
 This library provides types that define projects, configurations and also a command line interface to trigger builds.
 It only supports Apple platforms for the moment and not all because that's what I'm testing against currently but I plan to add support for at least Linux / Android.
@@ -24,10 +24,10 @@ See <doc:getting-started>.
 - ``BuildPlan``
 - ``PlanBuilder``
 
-### Build backend systems
+### Build systems
 
-- ``BuildBackend``
-- ``TargetConditionalBackend``
+- ``Builder``
+- ``TargetConditionalBuilder``
 
 - ``Autoconf``
 - ``CMake``
