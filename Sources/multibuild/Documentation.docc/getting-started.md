@@ -86,10 +86,31 @@ Xcode frameworks are also created under an `apple.universal` directory.
 
 ## Referencing products
 
-Let's we are compiling `libssh2` and it depends on `openssl`. In this case we should add OpenSSL to the ``Project/build`` function to find the build directory of a project. For example:
+Let's say we are compiling `libssh2` and it depends on `openssl`. In this case we can find the `openssl` build directory and pass it to our CMake options. When building for Apple platforms, `multibuild` will make frameworks from dynamic libraries declared in ``BuildBackend/products`` for us so we can link directly to the target specific framework instead of having to search for the correct subfolder in the Xcode framework inside ``Build/appleUniversalBuildDirectoryURL``. On other other platforms, you should link directly to the shared or static library.
 
 ```
 swift
+Project(
+    directoryURL: rootURL.appendingPathComponent("libssh2"),
+    dependencies: [.name("openssl")], // openssl must be compiled before
+    backend: CMake(products: [
+        .dynamicLibrary("src/libssh2.dylib", includePath: "../../include")
+    ], options: { target in
+        var opts = [...]
 
+        guard let openssl = self.build(for: "openssl")?.buildDirectoryURL(for: target) else {
+            return opts
+        }
 
+        // link to openssl.framework
+        let opensslFlags = "-F'\(openssl.path)' -framework openssl"
+
+        opts["CMAKE_C_FLAGS"] = opensslFlags
+        opts["CMAKE_CXX_FLAGS"] = opensslFlags
+        opts["OPENSSL_INCLUDE_DIR"] = openssl.appendingPathComponent("include").path
+        opts["OPENSSL_ROOT_DIR"] = openssl.path
+
+        return opts
+    })
+)
 ```
