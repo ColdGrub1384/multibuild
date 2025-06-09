@@ -226,7 +226,7 @@ public struct Project {
 
             if let patch = patchURL?.path {
                 let revertPatch = Process()
-                revertPatch.currentDirectoryURL = directoryURL
+                revertPatch.currentDirectoryURL = directoryURL.resolvingSymlinksInPath()
                 revertPatch.executableURL = URL(fileURLWithPath: "/usr/bin/git")
                 revertPatch.arguments = ["apply", "-R", patch]
                 revertPatch.launch()

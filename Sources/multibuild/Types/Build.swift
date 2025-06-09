@@ -165,7 +165,87 @@ public struct Build {
         urls = newURLs
     }
 
-    /// Creates an Xcode frameworks with all of the compiled platforms. 
+    internal func createSwiftPackage(xcodeFrameworks: [URL]) throws {
+
+        guard let appleUniversalBuildDirectoryURL else {
+            return
+        }
+
+        let packageName: String
+        if xcodeFrameworks.count == 1 {
+            packageName = xcodeFrameworks[0].deletingPathExtension().lastPathComponent
+        } else {
+            packageName = Framework.frameworkify(buildRootDirectory.deletingLastPathComponent())
+        }
+
+        let targets = xcodeFrameworks.map({ $0.deletingPathExtension().lastPathComponent })
+        var libraries = ""
+        var binaryTargets = ""
+        for target in targets {
+            libraries += """
+                    .library(
+                        name: "\(target)",
+                        targets: ["\(target)"]),\n
+            """
+
+            binaryTargets += """
+                    .binaryTarget(
+                        name: "\(target)",
+                        path: "\(target).xcframework"),\n
+            """
+        }
+
+        let packageManifest = """
+        // swift-tools-version:5.7
+        import PackageDescription
+
+        let package = Package(
+            name: "\(packageName)",
+            products: [
+        \(libraries)
+            ],
+            dependencies: [],
+            targets: [
+        \(binaryTargets)
+            ]
+        )
+        """
+
+        let packageDir = appleUniversalBuildDirectoryURL.appendingPathComponent(packageName)
+        let packageManifestURL = packageDir.appendingPathComponent("Package.swift")
+
+        if FileManager.default.fileExists(atPath: packageDir.path) {
+            try FileManager.default.removeItem(at: packageDir)
+        }
+
+        try FileManager.default.createDirectory(at: packageDir, withIntermediateDirectories: true)
+        try packageManifest.write(to: packageManifestURL, atomically: true, encoding: .utf8)
+        for framework in xcodeFrameworks {
+            try FileManager.default.copyItem(at: framework, to: packageDir.appendingPathComponent(framework.lastPathComponent))
+        }
+
+        let archiveSource = Process()
+        archiveSource.currentDirectoryURL = packageDir.resolvingSymlinksInPath()
+        archiveSource.executableURL = URL(fileURLWithPath: "/usr/bin/swift")
+        archiveSource.arguments = ["package", "archive-source"]
+        try archiveSource.run()
+        archiveSource.waitUntilExit()
+
+        if archiveSource.terminationStatus != 0 {
+            throw MergeError(programName: "swift", exitCode: Int(archiveSource.terminationStatus))
+        }
+
+        let archiveURL = appleUniversalBuildDirectoryURL.appendingPathComponent("\(packageName).zip")
+        if FileManager.default.fileExists(atPath: archiveURL.path) {
+            try FileManager.default.removeItem(at: archiveURL)
+        }
+        try FileManager.default.moveItem(at: packageDir.appendingPathComponent("\(packageName).zip"), to: archiveURL)
+        try FileManager.default.removeItem(at: packageDir)
+
+        print("Generated Swift Package at \(archiveURL.path)")
+    }
+
+    /// Creates a Xcode frameworks with all of the compiled platforms and a zipped Swift package.
     /// Fails if no product is found targetting an Apple SDK.
     /// 
     /// - Parameters:
@@ -432,6 +512,7 @@ public struct Build {
             }
         }
 
+        try createSwiftPackage(xcodeFrameworks: xcframeworks)
         return xcframeworks
     }
 }
