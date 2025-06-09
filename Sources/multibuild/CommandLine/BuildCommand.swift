@@ -8,7 +8,7 @@ import Foundation
 /// ```
 /// OVERVIEW: Command line interface for building your projects.
 /// 
-/// USAGE: build-libraries [--root <root>] [--list-targets] [--list-projects] [--no-compile] [--force-configure] [--target <target> ...] [--project <project> ...]
+/// USAGE: build-libraries [--root <root>] [--list-targets] [--list-projects] [--no-compile] [--no-packaging] [--force-configure] [--target <target> ...] [--project <project> ...]
 /// 
 /// OPTIONS:
 ///   --root <root>           Common root directory of projects. (defaults to working directory)
