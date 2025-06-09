@@ -6,11 +6,55 @@ internal var BuiltProjects = [URL]()
 /// Structure representing any project to compile.
 public struct Project {
 
+    /// Version of the project used for packaging.
+    public enum Version {
+
+        /// A git branch, tag or commit to checkout to.
+        /// If it refers to a branch or commit, the latest tag name will be passed to ``BuildPlan/didPackage``
+        case git(String)
+
+        /// A custom version string.
+        case custom(String)
+    }
+
+    internal func format(version: String) -> String {
+        let okayChars : Set<Character> = Set("0123456789.")
+        return String(version.filter {okayChars.contains($0) })
+    }
+
+    internal var versionString: String? {
+        switch version {
+            case .custom(let version):
+                return format(version: version)
+            case .git(_):
+                let outputPipe = Pipe()
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+                process.arguments = ["describe", "--tags", "--abbrev=0"]
+                process.standardOutput = outputPipe
+                do {
+                    try process.run()
+                } catch {
+                    return nil
+                }
+                process.waitUntilExit()
+
+                let data = outputPipe.fileHandleForReading.availableData
+                guard let versionString = String(data: data, encoding: .utf8) else {
+                    return nil
+                }
+
+                return format(version: versionString)
+            default:
+                return nil
+        }
+    }
+
     /// Root location of the project. 
     public var directoryURL: URL!
 
-    /// A Git branch, tag or commit to checkout out before compiling.
-    public var gitVersion: String?
+    /// A Version specified for packaging and checking out if it is a git version.
+    public var version: Version?
 
     /// The URL of a patch to apply before compiling. Will be undone after.
     public var patchURL: URL?
@@ -35,12 +79,12 @@ public struct Project {
     /// 
     /// - Parameters:
     ///   - directoryURL: Root location of the project. 
-    ///   - gitVersion: A Git branch, tag or commit to checkout out before compiling.
+    ///   - version: A Version specified for packaging and checking out if it is a git version.
     ///   - patchURL: The URL of a patch to apply before compiling. Will be undone after.
     ///   - builder: Build system.
-    public init(directoryURL: URL, gitVersion: String? = nil, patchURL: URL? = nil, dependencies: [Dependency] = [], builder: Builder) {
+    public init(directoryURL: URL, version: Version? = nil, patchURL: URL? = nil, dependencies: [Dependency] = [], builder: Builder) {
         self.directoryURL = directoryURL
-        self.gitVersion = gitVersion
+        self.version = version
         self.patchURL = patchURL
         self.dependencies = dependencies
         self.builder = builder
@@ -196,10 +240,17 @@ public struct Project {
         for target in _targets {
             try willBuild?(target)
 
+            let gitCheckout: String
+            if case .git(let version) = self.version {
+                gitCheckout = "git fetch --tags && git checkout \(version)"
+            } else {
+                gitCheckout = ""
+            }
+
             let buildScriptURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("\(UUID().uuidString).sh")
             try """
             cd "\(directoryURL.path)"
-            \(gitVersion != nil ? "git fetch --tags && git checkout \(gitVersion!)" : "")
+            \(gitCheckout)
             \(patchURL != nil ? "git apply \"\(patchURL!.path.replacingOccurrences(of: "\"", with: "\\\""))\"" : "")
             \(builder.buildScript(for: target, forceConfigure: forceConfigure))
             """.write(to: buildScriptURL, atomically: false, encoding: .utf8)

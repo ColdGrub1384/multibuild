@@ -165,17 +165,23 @@ public struct Build {
         urls = newURLs
     }
 
-    internal func createSwiftPackage(xcodeFrameworks: [URL]) throws {
+    /// Creates an Apple only Swift Package archive from Xcode Frameworks included as `binaryTarget`s.
+    /// 
+    /// - Parameters:
+    ///     - xcodeFrameworks: URLs of Xcode frameworks to include.
+    /// 
+    /// - Returns: URL of the generated archive.
+    public func createSwiftPackage(xcodeFrameworks: [URL]) throws -> URL? {
 
         guard let appleUniversalBuildDirectoryURL else {
-            return
+            return nil
         }
 
         let packageName: String
         if xcodeFrameworks.count == 1 {
-            packageName = xcodeFrameworks[0].deletingPathExtension().lastPathComponent
+            packageName = "apple-"+xcodeFrameworks[0].deletingPathExtension().lastPathComponent
         } else {
-            packageName = Framework.frameworkify(buildRootDirectory.deletingLastPathComponent())
+            packageName = "apple-"+Framework.frameworkify(buildRootDirectory.deletingLastPathComponent())
         }
 
         let targets = xcodeFrameworks.map({ $0.deletingPathExtension().lastPathComponent })
@@ -242,7 +248,7 @@ public struct Build {
         try FileManager.default.moveItem(at: packageDir.appendingPathComponent("\(packageName).zip"), to: archiveURL)
         try FileManager.default.removeItem(at: packageDir)
 
-        print("Generated Swift Package at \(archiveURL.path)")
+        return archiveURL
     }
 
     /// Creates a Xcode frameworks with all of the compiled platforms and a zipped Swift package.
@@ -512,7 +518,6 @@ public struct Build {
             }
         }
 
-        try createSwiftPackage(xcodeFrameworks: xcframeworks)
         return xcframeworks
     }
 }

@@ -1,7 +1,9 @@
 # multibuild
 
-A Swift build system for compiling to multiple architectures and sdks supporting multiple build systems.
+A Swift build system for projects compiling to multiple architectures and sdks.
 This library provides types that define projects, configurations and also a command line interface to trigger builds.
+
+After compiling `multibuild` generates Xcode frameworks and Swift Packages to be used on Apple platforms (non Apple platforms don't support `binaryTarget` and `xcframework`s, so we'll have to use an alternate package manager).
 
 (only supports Apple platforms for the moment and not all because that's what I'm testing against currently but I plan to add support for at least Linux / Android)
 
@@ -56,6 +58,8 @@ struct Plan: BuildPlan {
 }
 ```
 
+On Apple platforms, this will create a framework called `openssl` (project name) from static archives `libssl.a` and `libcrypto.a`, an universal Xcode framework and a Swift Package archive (contains all the frameworks from a project).
+
 ## Directory structure
 
 Build products will be located under a `build` directory inside the compiled project.
@@ -67,7 +71,7 @@ Xcode frameworks are also created under an `apple.universal` directory.
 ```
 OVERVIEW: Command line interface for building your projects.
 
-USAGE: build-libraries [--root <root>] [--list-targets] [--list-projects] [--no-compile] [--force-configure] [--target <target> ...] [--project <project> ...]
+USAGE: build-libraries [--root <root>] [--list-targets] [--list-projects] [--no-compile] [--no-packaging] [--force-configure] [--target <target> ...] [--project <project> ...]
 
 OPTIONS:
   --root <root>           Common root directory of projects. (defaults to working directory)

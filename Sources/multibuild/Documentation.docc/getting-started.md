@@ -2,8 +2,7 @@
 
 Learn how to declare and compile projects with `multibuild`. 
 
-To start, create a Swift executable target that will run when you want to compile your libraries and add `multibuild` as a dependency. I've tried creating a build tool plugin but I didn't manage to make it work.
-What I do in my Swift Package manifest is looking for Xcode frameworks in the project's directory and include them as `binaryTarget`s if they exist and if not, I download them from my server. And I use `multibuild` as part of the process of building and uploading the binaries to the server.
+To start, create a Swift executable target that will run when you want to compile your libraries and add `multibuild` as a dependency.
 
 Adding `multibuild` as a dependency:
 
@@ -83,6 +82,10 @@ $ swift run build-libraries [--root <root>] [--target <target> ...]
 Build products will be located under a `build` directory inside the compiled project.
 Inside the build directory, each folder is named `sdkname.arch1`. For example, `iphoneos.arm64`. These name correspond to targets you can pass to the cli program.
 Xcode frameworks are also created under an `apple.universal` directory.
+
+## Swift Packages
+
+Swift Packages for Apple platforms are generated from Xcode frameworks if available. You can implement ``BuildPlan/didPackage`` to perform operations on the packages such as uploading them to a package registry.
 
 ## Referencing products
 

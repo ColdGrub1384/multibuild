@@ -86,7 +86,7 @@ public struct BuildCommand<BuildPlanType: BuildPlan>: ParsableCommand {
     }
 
     /// Prints a list of declared projects separated by newlines.
-    func doListProjects() {
+    public func doListProjects() {
         let plan = BuildPlanType()
         if let dirName = plan.project.directoryURL?.lastPathComponent {
             print(dirName)
@@ -174,7 +174,11 @@ public struct BuildCommand<BuildPlanType: BuildPlan>: ParsableCommand {
                     if proj == nil, let name = dep.name {
                         proj = ProjectNames[name]
                     }
-                    _ = try proj?.build?.createXcodeFrameworks(bundleIdentifierPrefix: plan.bundleIdentifierPrefix)
+                    if let frameworks = try proj?.build?.createXcodeFrameworks(bundleIdentifierPrefix: plan.bundleIdentifierPrefix) {
+                        if let archive = try proj?.build?.createSwiftPackage(xcodeFrameworks: frameworks) {
+                            plan.didPackage(project: proj!, versionString: proj!.versionString, archiveURL: archive)
+                        }
+                    }
                 }
             }
         }
