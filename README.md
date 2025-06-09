@@ -73,6 +73,7 @@ OPTIONS:
   --root <root>           Common root directory of projects. (defaults to working directory)
   --list-targets          List supported compilation targets and exit.
   --list-projects         List declared projects and exit.
+  --no-packaging          Skip packaging and only perform compilation.
   --no-compile            Skip recompilation and only perform packaging operations.
   -f, --force-configure   Force regenerating Makefiles and other configurations.
   -t, --target <target>   Specify a target to build

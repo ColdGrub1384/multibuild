@@ -15,6 +15,7 @@ import Foundation
 ///   --list-targets          List supported compilation targets and exit.
 ///   --list-projects         List declared projects and exit.
 ///   --no-compile            Skip recompilation and only perform packaging operations.
+///   --no-packaging          Skip packaging and only perform compilation.
 ///   -f, --force-configure   Force regenerating Makefiles and other configurations.
 ///   -t, --target <target>   Specify a target to build
 ///   -p, --project <project> Specify a project to build
@@ -41,6 +42,10 @@ public struct BuildCommand<BuildPlanType: BuildPlan>: ParsableCommand {
     /// Skip recompilation and only perform packaging operations.
     @Flag(name: [.customLong("no-compile")], help: "Skip recompilation and only perform packaging operations.")
     public var noCompile = false
+
+    /// Skip packaging and only perform compilation.
+    @Flag(name: [.customLong("no-packaging")], help: "Skip packaging and only perform compilation.")
+    public var noPackaging = false
 
     /// Force regenerating configuration files. 
     @Flag(name: [.short, .customLong("force-configure")], help: "Force regenerating Makefiles and other configurations.")
@@ -162,13 +167,15 @@ public struct BuildCommand<BuildPlanType: BuildPlan>: ParsableCommand {
             }
         }
         
-        if plan.platform.supportedTargets.contains(where: { $0.isApple }) {
-            for dep in plan.project.dependencies {
-                var proj = dep.project
-                if proj == nil, let name = dep.name {
-                    proj = ProjectNames[name]
+        if !noPackaging {
+            if plan.platform.supportedTargets.contains(where: { $0.isApple }) {
+                for dep in plan.project.dependencies {
+                    var proj = dep.project
+                    if proj == nil, let name = dep.name {
+                        proj = ProjectNames[name]
+                    }
+                    _ = try proj?.build?.createXcodeFrameworks(bundleIdentifierPrefix: plan.bundleIdentifierPrefix)
                 }
-                _ = try proj?.build?.createXcodeFrameworks(bundleIdentifierPrefix: plan.bundleIdentifierPrefix)
             }
         }
     }
