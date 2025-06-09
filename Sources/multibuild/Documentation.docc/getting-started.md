@@ -45,7 +45,7 @@ struct Plan: BuildPlan {
             // URL of project, computed from the --root flag
             directoryURL: rootURL.appendingPathComponent("openssl"),
             // Checkout to version 3.0.16
-            gitVersion: "openssl-3.0.16",
+            version: .git("openssl-3.0.16"),
             builder: Autoconf(products: [
                 // Create dynamic library from libssl.a and libcrypto.a
                 .dynamicLibrary(staticArchives: [
@@ -85,7 +85,7 @@ Xcode frameworks are also created under an `apple.universal` directory.
 
 ## Swift Packages
 
-Swift Packages for Apple platforms are generated from Xcode frameworks if available. You can implement ``BuildPlan/didPackage`` to perform operations on the packages such as uploading them to a package registry.
+Swift Packages for Apple platforms are generated from Xcode frameworks if available. You can implement ``BuildPlan/didPackage(project:versionString:archiveURL:)`` to perform operations on the packages such as uploading them to a package registry.
 
 ## Referencing products
 

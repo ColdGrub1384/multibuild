@@ -10,7 +10,8 @@ public struct Project {
     public enum Version {
 
         /// A git branch, tag or commit to checkout to.
-        /// If it refers to a branch or commit, the latest tag name will be passed to ``BuildPlan/didPackage``
+        /// If it refers to a branch or commit, the latest tag name will be passed to ``BuildPlan/didPackage(project:versionString:archiveURL:)``.
+        /// If the project doesn't have tags, you should provide a custom version string and manually checkout.
         case git(String)
 
         /// A custom version string.
@@ -19,7 +20,11 @@ public struct Project {
 
     internal func format(version: String) -> String {
         let okayChars : Set<Character> = Set("0123456789.")
-        return String(version.filter {okayChars.contains($0) })
+        var version = String(version.filter {okayChars.contains($0) })
+        if version.hasPrefix(".") {
+            version.removeFirst()
+        }
+        return version
     }
 
     internal var versionString: String? {

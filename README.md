@@ -43,7 +43,7 @@ struct Plan: BuildPlan {
     var project: Project {
         Project(
             directoryURL: rootURL.appendingPathComponent("openssl"),
-            gitVersion: "openssl-3.0.16",
+            version: .git("openssl-3.0.16"),
             builder: Autoconf(products: [
                 .dynamicLibrary(staticArchives: [
                     "libssl.a", "libcrypto.a"
