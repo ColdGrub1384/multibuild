@@ -234,7 +234,7 @@ public struct Build {
         archiveSource.currentDirectoryURL = packageDir.resolvingSymlinksInPath()
         archiveSource.executableURL = URL(fileURLWithPath: "/usr/bin/swift")
         archiveSource.arguments = ["package", "archive-source"]
-        try archiveSource.run()
+        archiveSource.launch()
         archiveSource.waitUntilExit()
 
         if archiveSource.terminationStatus != 0 {

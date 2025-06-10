@@ -98,7 +98,7 @@ public struct PackageUpload {
                     registryURL.appendingPathComponent("\(archive.name)/\(archive.version ?? "0.0.0")/\(archive.url.lastPathComponent)").absoluteString
                 ]
         }
-        try curl.run()
+        curl.launch()
         curl.waitUntilExit()
         if curl.terminationStatus != 0 {
             throw Error(exitCode: Int(curl.terminationStatus), archiveURL: archive.url)

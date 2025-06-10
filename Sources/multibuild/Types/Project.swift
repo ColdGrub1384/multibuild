@@ -38,11 +38,7 @@ public struct Project {
                 process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
                 process.arguments = ["describe", "--tags", "--abbrev=0"]
                 process.standardOutput = outputPipe
-                do {
-                    try process.run()
-                } catch {
-                    return nil
-                }
+                process.launch()
                 process.waitUntilExit()
 
                 let data = outputPipe.fileHandleForReading.availableData

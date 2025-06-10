@@ -49,28 +49,32 @@ public extension Builder {
 internal extension Builder {
 
     func defaultEnvironment(for target: Target) -> [String:String] {
-        var flags = [String:String]()
-        switch target.systemName {
-            case .iphoneos, .iphonesimulator:
-                flags = [
-                    "IOSARCH": target.architectures.map({ $0.rawValue }).joined(separator: " "),
-                    "IOSSDK": target.systemName.rawValue
-                ]
-            case .watchos, .watchsimulator:
-                flags = [
-                    "WATCHOSARCH": target.architectures.map({ $0.rawValue }).joined(separator: " "),
-                    "WATCHOSSDK": target.systemName.rawValue
-                ]
-            case .appletvos, .appletvsimulator:
-                flags = [
-                    "TVOSARCH": target.architectures.map({ $0.rawValue }).joined(separator: " "),
-                    "TVOSSDK": target.systemName.rawValue
-                ]
-            case .maccatalyst:
-                flags = [
-                    "MAC_CATALYST": target.architectures.map({ $0.rawValue }).joined(separator: " ")
-                ]
-        }
-        return flags
+        targetEnvironment(for: target)
     }
+}
+
+internal func targetEnvironment(for target: Target) -> [String:String] {
+    var flags = [String:String]()
+    switch target.systemName {
+        case .iphoneos, .iphonesimulator:
+            flags = [
+                "IOSARCH": target.architectures.map({ $0.rawValue }).joined(separator: " "),
+                "IOSSDK": target.systemName.rawValue
+            ]
+        case .watchos, .watchsimulator:
+            flags = [
+                "WATCHOSARCH": target.architectures.map({ $0.rawValue }).joined(separator: " "),
+                "WATCHOSSDK": target.systemName.rawValue
+            ]
+        case .appletvos, .appletvsimulator:
+            flags = [
+                "TVOSARCH": target.architectures.map({ $0.rawValue }).joined(separator: " "),
+                "TVOSSDK": target.systemName.rawValue
+            ]
+        case .maccatalyst:
+            flags = [
+                "MAC_CATALYST": target.architectures.map({ $0.rawValue }).joined(separator: " ")
+            ]
+    }
+    return flags
 }

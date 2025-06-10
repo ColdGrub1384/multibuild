@@ -1,4 +1,5 @@
 import ArgumentParser
+import Foundation
 
 /// Information about the target SDK and architecture(s) we're compiling to.
 /// Can be added to a ``Platform`` or to another target with the `+` operator.
@@ -55,6 +56,54 @@ public struct Target: Hashable, ExpressibleByArgument {
     ///     That means the project compiles once per architecture and then it merges the libraries. 
     ///     This behaviour can be changed by setting the `universalBuild` parameter of the ``Project/compile`` function.
     public var architectures: [Architecture]
+
+    /// Target triple. For example, `arm64-apple-ios13.0`.
+    public var triple: String? {
+        let pipe = Pipe()
+        let process = Process()
+        process.standardOutput = pipe
+        process.executableURL = URL(fileURLWithPath: "/bin/bash")
+        process.environment = targetEnvironment(for: self)
+        process.environment?["BUILD_SCRIPT"] = Bundle.module.path(forResource: "Environment/print_triple", ofType: "sh")
+        for (key, value) in ProcessInfo.processInfo.environment {
+            process.environment?[key] = value
+        }
+        process.arguments = [
+            Bundle.module.url(forResource: "Environment/environment", withExtension: "sh")!.path,
+            "3.14"
+        ]
+
+        process.launch()
+        process.waitUntilExit()
+        
+        return String(data: pipe.fileHandleForReading.availableData, encoding: .utf8)?.replacingOccurrences(of: "\n", with: "")
+    }
+
+    /// URL of the sysroot directory.
+    public var sdkURL: URL? {
+        let pipe = Pipe()
+        let process = Process()
+        process.standardOutput = pipe
+        process.executableURL = URL(fileURLWithPath: "/bin/bash")
+        process.environment = targetEnvironment(for: self)
+        process.environment?["BUILD_SCRIPT"] = Bundle.module.path(forResource: "Environment/print_sdk_path", ofType: "sh")
+        for (key, value) in ProcessInfo.processInfo.environment {
+            process.environment?[key] = value
+        }
+        process.arguments = [
+            Bundle.module.url(forResource: "Environment/environment", withExtension: "sh")!.path,
+            "3.14"
+        ]
+
+        process.launch()
+        process.waitUntilExit()
+
+        if let path = String(data: pipe.fileHandleForReading.availableData, encoding: .utf8)?.replacingOccurrences(of: "\n", with: "") {
+            return URL(fileURLWithPath: path)
+        } else {
+            return nil
+        }
+    }
 
     /// Returns `true` if targetting an Apple SDK.
     public var isApple: Bool {
