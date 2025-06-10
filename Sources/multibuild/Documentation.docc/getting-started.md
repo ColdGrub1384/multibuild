@@ -15,7 +15,9 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "build-libraries",
-            dependencies: ["Multibuild"]),
+            dependencies: [
+                .product(name: "Multibuild", package: "multibuild")
+            ]),
     ]
 )
 ```
