@@ -3,6 +3,40 @@ import Foundation
 /// Generating and running Makefiles with CMake.
 public struct CMake: Builder {
 
+    /// A CMake generator.
+    public struct Generator {
+        
+        /// Name of the generator passed with `-G`.
+        public var name: String
+
+        /// Program responsible of building the generated project.
+        /// Takes the target being compiled to and returns a list of arguments including the program's name.
+        public var buildProgram: ((Target) -> [String])
+
+        /// Initializes a CMake generator.
+        /// 
+        /// - Parameters:
+        ///   - name: Name of the generator passed with `-G`.
+        ///   - buildProgram: Program responsible of building the generated project.
+        public init(name: String, buildProgram: @escaping ((Target) -> [String])) {
+            self.name = name
+            self.buildProgram = buildProgram
+        }
+
+        /// 'Unix Makefiles' generator.
+        public static let unixMakefiles = Self(name: "Unix Makefiles", buildProgram: { _ in
+            ["make"]
+        })
+
+        /// 'Ninja' generator.
+        public static let ninja = Self(name: "Ninja", buildProgram: { _ in
+            ["ninja"]
+        })
+    }
+
+    /// CMake generator passed with `-G`.
+    public var generator: Generator
+
     /// CMake options from a target being compiled to.
     public var options: ((Target) -> [String:String])
 
@@ -12,9 +46,11 @@ public struct CMake: Builder {
     /// 
     /// - Parameters:
     ///     - products: List of known products used for packaging operations.
+    ///     - generator: CMake generator (defaults to 'Unix Makefiles').
     ///     - options: CMake options from a target being compiled to.
-    public init(products: [Product] = [], options: ((Target) -> [String:String])? = nil) {
+    public init(products: [Product] = [], generator: Generator = .unixMakefiles, options: ((Target) -> [String:String])? = nil) {
         self.products = products
+        self.generator = generator
         self.options = options ?? { _ in
             [:]
         }
@@ -30,18 +66,20 @@ public struct CMake: Builder {
             options[option.key] = option.value
         }
 
+        let buildInvocation = generator.buildProgram(target).map({ "\"\($0.replacingOccurrences(of: "\"", with: "\\\""))\"" }).joined(separator: " ")
+
         let buildDir = outputDirectoryPath(for: target)
         return """
         mkdir -p "\(buildDir)"
-        if [ -f "\(buildDir)/Makefile" ] && [ "\(forceConfigure)" = "false" ]; then
+        if [ -f "\(buildDir)/CMakeCache.txt" ] && [ "\(forceConfigure)" = "false" ]; then
             cd "\(buildDir)" &&
-            make
+            \(buildInvocation)
         else
-            cmake -B "\(buildDir)" \(options.map({
+            cmake -G "\(generator.name)" -B "\(buildDir)" \(options.map({
                 "-D\($0.key)='\($0.value)'"
             }).joined(separator: " ")) &&
             cd "\(buildDir)" &&
-            make
+            \(buildInvocation)
         fi
         """
     }
