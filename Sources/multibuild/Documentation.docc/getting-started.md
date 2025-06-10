@@ -15,7 +15,7 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "build-libraries",
-            dependencies: ["multibuild"]),
+            dependencies: ["Multibuild"]),
     ]
 )
 ```
@@ -28,7 +28,7 @@ Example with OpenSSL:
 
 ```swift
 import Foundation
-import multibuild
+import Multibuild
 
 @main
 struct Plan: BuildPlan {

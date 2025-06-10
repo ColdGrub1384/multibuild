@@ -6,8 +6,8 @@ let package = Package(
     name: "multibuild",
     products: [
         .library(
-            name: "multibuild",
-            targets: ["multibuild"]),
+            name: "Multibuild",
+            targets: ["Multibuild"]),
     ],
 
     dependencies: [
@@ -18,7 +18,7 @@ let package = Package(
 
     targets: [
         .target(
-            name: "multibuild",
+            name: "Multibuild",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "ZIPFoundation", package: "ZIPFoundation")

@@ -22,7 +22,7 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "build-libraries",
-            dependencies: ["multibuild"]),
+            dependencies: ["Multibuild"]),
     ]
 )
 ```
@@ -33,7 +33,7 @@ let package = Package(
 The protocol `BuildPlan` provides an entry point for a command line program.
 
 ```swift
-import multibuild
+import Multibuild
 
 @main
 struct Plan: BuildPlan {
