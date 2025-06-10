@@ -1,4 +1,4 @@
-# ``multibuild``
+# ``Multibuild``
 
 A Swift build system for compiling to multiple architectures and sdks supporting multiple build systems.
 
