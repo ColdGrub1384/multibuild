@@ -85,7 +85,7 @@ Xcode frameworks are also created under an `apple.universal` directory.
 
 ## Swift Packages
 
-Swift Packages for Apple platforms are generated from Xcode frameworks if available. You can implement ``BuildPlan/didPackage(project:versionString:archiveURL:)`` to perform operations on the packages such as uploading them to a package registry.
+Swift Packages for Apple platforms are generated from Xcode frameworks if available. You can implement ``BuildPlan/packageUpload(for:)`` to upload content to a Swift Package Registry.
 
 ## Referencing products
 

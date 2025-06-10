@@ -71,14 +71,15 @@ Xcode frameworks are also created under an `apple.universal` directory.
 ```
 OVERVIEW: Command line interface for building your projects.
 
-USAGE: build-libraries [--root <root>] [--list-targets] [--list-projects] [--no-compile] [--no-packaging] [--force-configure] [--target <target> ...] [--project <project> ...]
+USAGE: build-command [--root <root>] [--list-targets] [--list-projects] [--no-compile] [--no-upload] [--no-package] [--force-configure] [--target <target> ...] [--project <project> ...]
 
 OPTIONS:
   --root <root>           Common root directory of projects. (defaults to working directory)
   --list-targets          List supported compilation targets and exit.
   --list-projects         List declared projects and exit.
-  --no-packaging          Skip packaging and only perform compilation.
   --no-compile            Skip recompilation and only perform packaging operations.
+  --no-upload             Skip uploading generated packages.
+  --no-package            Skip generation of Xcode Frameworks and Swift Packages.
   -f, --force-configure   Force regenerating Makefiles and other configurations.
   -t, --target <target>   Specify a target to build
   -p, --project <project> Specify a project to build

@@ -10,7 +10,7 @@ public struct Project {
     public enum Version {
 
         /// A git branch, tag or commit to checkout to.
-        /// If it refers to a branch or commit, the latest tag name will be passed to ``BuildPlan/didPackage(project:versionString:archiveURL:)``.
+        /// If it refers to a branch or commit, the latest tag name will be used to initialize a ``PackageArchive``.
         /// If the project doesn't have tags, you should provide a custom version string and manually checkout.
         case git(String)
 
@@ -34,6 +34,7 @@ public struct Project {
             case .git(_):
                 let outputPipe = Pipe()
                 let process = Process()
+                process.currentDirectoryURL = directoryURL.resolvingSymlinksInPath()
                 process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
                 process.arguments = ["describe", "--tags", "--abbrev=0"]
                 process.standardOutput = outputPipe

@@ -20,6 +20,11 @@ See <doc:getting-started>.
 - ``Project``
 - ``Target``
 
+### Generating packages
+
+- ``PackageArchive``
+- ``PackageUpload``
+
 ### Command line interface
 
 - ``BuildCommand``
@@ -30,7 +35,6 @@ See <doc:getting-started>.
 
 - ``Builder``
 - ``TargetConditionalBuilder``
-
 - ``Autoconf``
 - ``CMake``
 - ``Python``

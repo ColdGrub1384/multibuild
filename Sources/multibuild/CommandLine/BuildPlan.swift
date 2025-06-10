@@ -43,13 +43,13 @@ public protocol BuildPlan {
     /// - Returns: Information about the build directory.
     func build(for projectName: String) -> Build?
 
-    /// Called after generating an Apple Swift Package Archive so you can upload it to a package registry.
+    /// Package Registry information to upload an archive.
     /// 
     /// - Parameters:
-    ///   - project: Packaged project.
-    ///   - versionString: Project's version.
-    ///   - archiveURL: URL of package archive.
-    func didPackage(project: Project, versionString: String?, archiveURL: URL)
+    ///     - archive: Archive to upload.
+    /// 
+    /// - Returns: An optional ``PackageUpload`` instance. If none is provided, no upload will be performed.
+    func packageUpload(for archive: PackageArchive) -> PackageUpload?
 
     /// All generated builds.
     var allBuilds: [Build] { get }
@@ -74,8 +74,8 @@ public extension BuildPlan {
         ProjectNames[projectName]?.build
     }
 
-    func didPackage(project: Project, versionString: String?, archiveURL: URL) {
-        print("Generated Swift Package at \(archiveURL.path)")
+    func packageUpload(for archive: PackageArchive) -> PackageUpload? {
+        nil
     }
 
     var allBuilds: [Build] {

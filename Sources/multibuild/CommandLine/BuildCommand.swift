@@ -1,5 +1,6 @@
 import ArgumentParser
 import Foundation
+import ZIPFoundation
 
 /// Argument parser for a command line program.
 /// Can be constructed from a BuildPlan type and be parsed programatically.
@@ -8,14 +9,15 @@ import Foundation
 /// ```
 /// OVERVIEW: Command line interface for building your projects.
 /// 
-/// USAGE: build-libraries [--root <root>] [--list-targets] [--list-projects] [--no-compile] [--no-packaging] [--force-configure] [--target <target> ...] [--project <project> ...]
+/// USAGE: build-libraries [--root <root>] [--list-targets] [--list-projects] [--no-compile] [--no-upload] [--no-package] [--force-configure] [--target <target> ...] [--project <project> ...]
 /// 
 /// OPTIONS:
 ///   --root <root>           Common root directory of projects. (defaults to working directory)
 ///   --list-targets          List supported compilation targets and exit.
 ///   --list-projects         List declared projects and exit.
 ///   --no-compile            Skip recompilation and only perform packaging operations.
-///   --no-packaging          Skip packaging and only perform compilation.
+///   --no-upload             Skip uploading generated packages.
+///   --no-package            Skip generation of Xcode Frameworks and Swift Packages.
 ///   -f, --force-configure   Force regenerating Makefiles and other configurations.
 ///   -t, --target <target>   Specify a target to build
 ///   -p, --project <project> Specify a project to build
@@ -43,8 +45,12 @@ public struct BuildCommand<BuildPlanType: BuildPlan>: ParsableCommand {
     @Flag(name: [.customLong("no-compile")], help: "Skip recompilation and only perform packaging operations.")
     public var noCompile = false
 
-    /// Skip packaging and only perform compilation.
-    @Flag(name: [.customLong("no-packaging")], help: "Skip packaging and only perform compilation.")
+    /// Skip uploading packages.
+    @Flag(name: [.customLong("no-upload")], help: "Skip uploading generated packages.")
+    public var noUpload = false
+
+    /// Skip generation of Xcode Frameworks and Swift Packages.
+    @Flag(name: [.customLong("no-package")], help: "Skip generation of Xcode Frameworks and Swift Packages.")
     public var noPackaging = false
 
     /// Force regenerating configuration files. 
@@ -175,8 +181,22 @@ public struct BuildCommand<BuildPlanType: BuildPlan>: ParsableCommand {
                         proj = ProjectNames[name]
                     }
                     if let frameworks = try proj?.build?.createXcodeFrameworks(bundleIdentifierPrefix: plan.bundleIdentifierPrefix) {
-                        if let archive = try proj?.build?.createSwiftPackage(xcodeFrameworks: frameworks) {
-                            plan.didPackage(project: proj!, versionString: proj!.versionString, archiveURL: archive)
+                        for framework in frameworks {
+                            let archiveURL = framework.deletingLastPathComponent().appendingPathComponent("apple-universal-\(framework.lastPathComponent).zip")
+                            try FileManager.default.zipItem(at: framework, to: archiveURL)
+                            let archive = PackageArchive(url: archiveURL, name: proj?.directoryURL.lastPathComponent ?? framework.deletingPathExtension().lastPathComponent, version: proj?.versionString, kind: .xcodeFramework)
+                            if let upload = plan.packageUpload(for: archive), !noUpload {
+                                try upload.start(with: archive)
+                            }
+                            try FileManager.default.removeItem(at: archiveURL)
+                        }
+                        
+                        if let archiveURL = try proj?.build?.createSwiftPackage(xcodeFrameworks: frameworks) {
+                            print("Generated Swift Package at \(archiveURL.path)")
+                            let archive = PackageArchive(url: archiveURL, name: archiveURL.deletingPathExtension().lastPathComponent, version: proj?.versionString, kind: .swiftPackage)
+                            if let upload = plan.packageUpload(for: archive), !noUpload {
+                                try upload.start(with: archive)
+                            }
                         }
                     }
                 }
