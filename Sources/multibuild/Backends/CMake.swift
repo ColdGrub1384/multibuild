@@ -76,7 +76,7 @@ public struct CMake: Builder {
             \(buildInvocation)
         else
             cmake -G "\(generator.name)" -B "\(buildDir)" \(options.map({
-                "-D\($0.key)='\($0.value)'"
+                "-D\($0.key)='\($0.value.replacingOccurrences(of: "'", with: "\\'"))'"
             }).joined(separator: " ")) &&
             cd "\(buildDir)" &&
             \(buildInvocation)
