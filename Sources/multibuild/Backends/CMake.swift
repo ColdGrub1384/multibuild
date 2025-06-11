@@ -58,7 +58,10 @@ public struct CMake: Builder {
 
     public func buildScript(for target: Target, forceConfigure: Bool) -> String {
         
-        var options = ["ARCHS": target.architectures.map({ $0.rawValue }).joined(separator: ";")]
+        var options = [
+            "ARCHS": target.architectures.map({ $0.rawValue }).joined(separator: ";"),
+            "CMAKE_MACOSX_BUNDLE": "OFF"
+        ]
         if target.isApple {
             options["CMAKE_TOOLCHAIN_FILE"] = Bundle.module.path(forResource: "Environment/ios-cmake/ios.toolchain", ofType: "cmake")
         }
