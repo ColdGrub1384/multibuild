@@ -77,6 +77,12 @@ public struct CMake: Builder {
 
         let buildDir = outputDirectoryPath(for: target)
         return """
+        export CC=
+        export CXX=
+        export CFLAGS=
+        export CXXFLAGS=
+        export LDFLAGS=
+
         mkdir -p "\(buildDir)"
         if [ -f "\(buildDir)/CMakeCache.txt" ] && [ "\(forceConfigure)" = "false" ]; then
             cd "\(buildDir)" &&
