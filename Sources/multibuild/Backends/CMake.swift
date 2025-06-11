@@ -66,7 +66,11 @@ public struct CMake: Builder {
             options["CMAKE_TOOLCHAIN_FILE"] = Bundle.module.path(forResource: "Environment/ios-cmake/ios.toolchain", ofType: "cmake")
         }
         for option in self.options(target) {
-            options[option.key] = option.value
+            var value = option.value
+            if option.key == "CMAKE_C_FLAGS" || option.key == "CMAKE_CXX_FLAGS" {
+                value = "-target \(target.triple!) -isysroot \(target.sdkURL!.path) \(value)"
+            }
+            options[option.key] = value
         }
 
         let buildInvocation = generator.buildProgram(target).map({ "\"\($0.replacingOccurrences(of: "\"", with: "\\\""))\"" }).joined(separator: " ")
