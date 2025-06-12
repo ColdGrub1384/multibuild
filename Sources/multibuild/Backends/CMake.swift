@@ -77,14 +77,12 @@ public struct CMake: Builder {
 
         let buildDir = outputDirectoryPath(for: target)
         return """
-        export CC="iosxcrun --sdk $SDK_NAME clang"
-        export CXX="iosxcrun --sdk $SDK_NAME clang"
-        export CPP="$TOOLS_DIR/cpp"
-        export CFLAGS="-isysroot $SDK -target $TARGET_TRIPLE"
-        export CXXFLAGS="-isysroot $SDK -target $TARGET_TRIPLE"
-        export LDFLAGS="-isysroot $SDK -target $TARGET_TRIPLE"
-        export PREFIX="$PWD/../../build/$PLATFORM.$ARCHITECTURE"
-
+        export CC=
+        export CXX=
+        export CPP=
+        export CFLAGS=
+        export CXXFLAGS=
+        export LDFLAGS=
 
         mkdir -p "\(buildDir)"
         if [ -f "\(buildDir)/CMakeCache.txt" ] && [ "\(forceConfigure)" = "false" ]; then
