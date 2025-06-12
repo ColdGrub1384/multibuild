@@ -68,7 +68,11 @@ public struct CMake: Builder {
         for option in self.options(target) {
             var value = option.value
             if option.key == "CMAKE_C_FLAGS" || option.key == "CMAKE_CXX_FLAGS" {
-                value = "-target \(target.triple!) -isysroot \(target.sdkURL!.path) \(value)"
+                var archs = ""
+                for arch in target.architectures {
+                    archs += "-arch \(arch.rawValue) "
+                }
+                value = "-target \(target.triple!) -isysroot \(target.sdkURL!.path) \(value) \(archs)"
             }
             options[option.key] = value
         }
