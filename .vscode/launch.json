@@ -17,6 +17,24 @@
             "name": "Debug multibuild",
             "program": "${workspaceFolder:multibuild}/.build/debug/multibuild",
             "preLaunchTask": "swift: Build Debug multibuild"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:multibuild}",
+            "name": "Debug CopyResources",
+            "program": "${workspaceFolder:multibuild}/.build/debug/CopyResources",
+            "preLaunchTask": "swift: Build Debug CopyResources"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:multibuild}",
+            "name": "Release CopyResources",
+            "program": "${workspaceFolder:multibuild}/.build/release/CopyResources",
+            "preLaunchTask": "swift: Build Release CopyResources"
         }
     ]
 }

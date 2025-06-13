@@ -63,7 +63,7 @@ public struct CMake: Builder {
             "CMAKE_MACOSX_BUNDLE": "OFF"
         ]
         if target.isApple {
-            options["CMAKE_TOOLCHAIN_FILE"] = Bundle.module.path(forResource: "Environment/ios-cmake/ios.toolchain", ofType: "cmake")
+            options["CMAKE_TOOLCHAIN_FILE"] = Bundle.module.path(forResource: "ios.toolchain", ofType: "cmake")
         }
         for option in self.options(target) {
             var value = option.value

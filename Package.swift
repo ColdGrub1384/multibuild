@@ -17,15 +17,31 @@ let package = Package(
     ],
 
     targets: [
+
+        .executableTarget(
+            name: "CopyResources"
+        ),
+        .plugin(
+            name: "CopyResourcesPlugin",
+            capability: .buildTool(),
+            dependencies: ["CopyResources"],
+            exclude: ["ios-cmake"]
+        ),
+
         .target(
             name: "Multibuild",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
-                .product(name: "ZIPFoundation", package: "ZIPFoundation")
+                .product(name: "ZIPFoundation", package: "ZIPFoundation"),
+
             ],
-            exclude: ["Environment/ios-cmake/example"],
+            exclude: ["ios-cmake"],
             resources: [
-                .copy("Environment")
+                .copy("Environment"),
+                .copy("CopyResourcesPlugin/ios.toolchain.cmake")
+            ],
+            plugins: [
+                .plugin(name: "CopyResourcesPlugin")
             ])
     ]
 )
