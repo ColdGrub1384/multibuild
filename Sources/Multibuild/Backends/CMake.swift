@@ -60,7 +60,8 @@ public struct CMake: Builder {
         
         var options = [
             "ARCHS": target.architectures.map({ $0.rawValue }).joined(separator: ";"),
-            "CMAKE_MACOSX_BUNDLE": "OFF"
+            "CMAKE_MACOSX_BUNDLE": "OFF",
+            "ENABLE_VISIBILITY": "ON"
         ]
         if target.isApple {
             options["CMAKE_TOOLCHAIN_FILE"] = Bundle.module.path(forResource: "ios.toolchain", ofType: "cmake")
