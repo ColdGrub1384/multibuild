@@ -14,6 +14,7 @@ See <doc:getting-started>.
 ### Configuring a project
 
 - ``Build``
+- ``Dependency``
 - ``Framework``
 - ``Product``
 - ``Platform``
