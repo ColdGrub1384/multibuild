@@ -23,9 +23,9 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "ZIPFoundation", package: "ZIPFoundation")
             ],
-            exclude: ["multibuild/Environment/ios-cmake/example"],
+            exclude: ["Environment/ios-cmake/example"],
             resources: [
-                .copy("multibuild/Environment")
+                .copy("Environment")
             ])
     ]
 )
