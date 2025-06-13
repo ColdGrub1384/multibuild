@@ -24,8 +24,7 @@ let package = Package(
         .plugin(
             name: "CopyResourcesPlugin",
             capability: .buildTool(),
-            dependencies: ["CopyResources"],
-            exclude: ["ios-cmake"]
+            dependencies: ["CopyResources"]
         ),
 
         .target(
@@ -38,7 +37,6 @@ let package = Package(
             exclude: ["ios-cmake"],
             resources: [
                 .copy("Environment"),
-                .copy("CopyResourcesPlugin/ios.toolchain.cmake")
             ],
             plugins: [
                 .plugin(name: "CopyResourcesPlugin")
