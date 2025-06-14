@@ -332,10 +332,15 @@ public struct Build {
                         binaryName = staticArchive.binaryName
                     }
                     for libPath in staticArchive.libraryPaths {
-                        process.arguments!.append(contentsOf: [
-                            "-force_load",
-                            directory.appendingPathComponent(libPath).resolvingSymlinksInPath().path
-                        ])
+                        let path = directory.appendingPathComponent(libPath).resolvingSymlinksInPath().path
+                        if libPath.lowercased().hasSuffix(".a") {
+                            process.arguments!.append(contentsOf: [
+                                "-force_load",
+                                path
+                            ])
+                        } else {
+                            process.arguments!.append(path)
+                        }
                     }
                     if let includePath = staticArchive.includePath {
                         let includeURL = directory.appendingPathComponent(includePath)
