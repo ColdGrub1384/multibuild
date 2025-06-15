@@ -352,7 +352,9 @@ public struct Build {
                         "-dynamiclib",
                         "-framework", "CoreFoundation",
                         "-framework", "Security",
-                        "-lc++"
+                        "-lc++",
+                        "-F.",
+                        "-L."
                     ]+additionalLinkerFlags+(target.systemName == .maccatalyst ? [
                         "-target",
                         "\(target.architectures.map({ $0.rawValue }).joined(separator: "-"))-apple-ios13.1-macabi"
