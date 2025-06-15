@@ -180,6 +180,13 @@ public struct BuildCommand<BuildPlanType: BuildPlan>: ParsableCommand {
                     if proj == nil, let name = dep.name {
                         proj = ProjectNames[name]
                     }
+                    
+                    if !projects.isEmpty {
+                        guard projects.contains(where: { $0.directoryURL.lastPathComponent == proj?.directoryURL.lastPathComponent }) else {
+                            continue
+                        }
+                    }
+                    
                     if let frameworks = try proj?.build?.createXcodeFrameworks(bundleIdentifierPrefix: plan.bundleIdentifierPrefix) {
                         for framework in frameworks {
                             let archiveURL = framework.deletingLastPathComponent().appendingPathComponent("apple-universal-\(framework.lastPathComponent).zip")
