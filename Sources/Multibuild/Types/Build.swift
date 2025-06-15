@@ -326,6 +326,7 @@ public struct Build {
                     }
                     
                     let process = Process()
+                    process.currentDirectoryURL = buildDirectoryURL(for: target)?.resolvingSymlinksInPath()
                     process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
                     process.arguments = [
                         "-sdk",
