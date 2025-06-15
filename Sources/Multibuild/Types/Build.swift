@@ -274,9 +274,10 @@ public struct Build {
         let universalBuildDir = buildRootDirectory.appendingPathComponent("apple.universal")
         try? FileManager.default.createDirectory(at: universalBuildDir, withIntermediateDirectories: true)
 
-        var staticArchivesLinkerFlags = [String]()
-        var staticArchivesToMergeIntoOneDylib = [Product]()
+        var staticArchivesLinkerFlags = [String:[((Target) -> [String])?]]()
+        var staticArchivesToMergeIntoOneDylib = [String:[Product]]()
         var staticArchives = [Product]()
+
         var dynamicLibraries = [Product]()
         var frameworks = [Product]()
 
@@ -286,9 +287,19 @@ public struct Build {
                     dynamicLibraries.append(product)
                 case .staticArchive(let merge, let linkerFlags):
                     if merge {
-                        staticArchivesToMergeIntoOneDylib.append(product)
-                        for linkerFlag in linkerFlags ?? [] {
-                            staticArchivesLinkerFlags.append(linkerFlag)
+                        let defaultBinaryName = buildRootDirectory.deletingLastPathComponent().lastPathComponent
+                        let binaryName = product.binaryName ?? defaultBinaryName
+
+                        if staticArchivesToMergeIntoOneDylib[binaryName] != nil {
+                            staticArchivesToMergeIntoOneDylib[binaryName]?.append(product)
+                        } else {
+                            staticArchivesToMergeIntoOneDylib[binaryName] = [product]
+                        }
+
+                        if staticArchivesLinkerFlags[binaryName] != nil {
+                            staticArchivesLinkerFlags[binaryName]?.append(linkerFlags)
+                        } else {
+                            staticArchivesLinkerFlags[binaryName] = [linkerFlags]
                         }
                     } else {
                         staticArchives.append(product)
@@ -303,80 +314,85 @@ public struct Build {
 
         if staticArchivesToMergeIntoOneDylib.count > 0 {
             for (target, directory) in buildDirs {
-                let libraryMainURL = directory.appendingPathComponent("_library_main.c")
-                try "int _library_main() { return 0; }".write(to: libraryMainURL, atomically: false, encoding: .utf8)
+                for (binaryName, staticArchives) in staticArchivesToMergeIntoOneDylib {
+                    let libraryMainURL = directory.appendingPathComponent("_library_main.c")
+                    try "int _library_main() { return 0; }".write(to: libraryMainURL, atomically: false, encoding: .utf8)
 
-                let process = Process()
-                process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
-                process.arguments = [
-                    "-sdk",
-                    target.systemName == .maccatalyst ? "macosx" : target.systemName.rawValue,
-                    "clang",
-                    "-dynamiclib",
-                    "-framework", "CoreFoundation",
-                    "-framework", "Security",
-                    "-lc++"
-                ]+staticArchivesLinkerFlags+(target.systemName == .maccatalyst ? [
-                    "-target",
-                    "\(target.architectures.map({ $0.rawValue }).joined(separator: "-"))-apple-ios13.1-macabi"
-                ] : [])
-                for arch in target.architectures {
-                    process.arguments!.append(contentsOf: ["-arch", arch.rawValue])
-                }
-
-                var includeURLs = [URL]()
-                var headersURLs = [URL]()
-                var binaryName: String?
-                for staticArchive in staticArchivesToMergeIntoOneDylib {
-                    if binaryName == nil && staticArchive.binaryName != nil {
-                        binaryName = staticArchive.binaryName
-                    }
-                    for libPath in staticArchive.libraryPaths {
-                        let path = directory.appendingPathComponent(libPath).resolvingSymlinksInPath().path
-                        if libPath.lowercased().hasSuffix(".a") {
-                            process.arguments!.append(contentsOf: [
-                                "-force_load",
-                                path
-                            ])
-                        } else {
-                            process.arguments!.append(path)
+                    var additionalLinkerFlags = [String]()
+                    for flags in staticArchivesLinkerFlags[binaryName] ?? [] {
+                        for flag in flags?(target) ?? [] {
+                            additionalLinkerFlags.append(flag)
                         }
                     }
-                    if let includePath = staticArchive.includePath {
-                        let includeURL = directory.appendingPathComponent(includePath)
-                        if !includeURLs.contains(includeURL) {
-                            includeURLs.append(includeURL)
-                        }
+                    
+                    let process = Process()
+                    process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+                    process.arguments = [
+                        "-sdk",
+                        target.systemName == .maccatalyst ? "macosx" : target.systemName.rawValue,
+                        "clang",
+                        "-dynamiclib",
+                        "-framework", "CoreFoundation",
+                        "-framework", "Security",
+                        "-lc++"
+                    ]+additionalLinkerFlags+(target.systemName == .maccatalyst ? [
+                        "-target",
+                        "\(target.architectures.map({ $0.rawValue }).joined(separator: "-"))-apple-ios13.1-macabi"
+                    ] : [])
+                    for arch in target.architectures {
+                        process.arguments!.append(contentsOf: ["-arch", arch.rawValue])
                     }
-                    if let headers = staticArchive.headers {
-                        for header in headers {
-                            let headerURL = directory.appendingPathComponent(header)
-                            if !headersURLs.contains(headerURL) {
-                                headersURLs.append(headerURL)
+
+                    var includeURLs = [URL]()
+                    var headersURLs = [URL]()
+                    for staticArchive in staticArchives {
+                        for libPath in staticArchive.libraryPaths {
+                            let path = directory.appendingPathComponent(libPath).resolvingSymlinksInPath().path
+                            if libPath.lowercased().hasSuffix(".a") {
+                                process.arguments!.append(contentsOf: [
+                                    "-force_load",
+                                    path
+                                ])
+                            } else {
+                                process.arguments!.append(path)
+                            }
+                        }
+                        if let includePath = staticArchive.includePath {
+                            let includeURL = directory.appendingPathComponent(includePath)
+                            if !includeURLs.contains(includeURL) {
+                                includeURLs.append(includeURL)
+                            }
+                        }
+                        if let headers = staticArchive.headers {
+                            for header in headers {
+                                let headerURL = directory.appendingPathComponent(header)
+                                if !headersURLs.contains(headerURL) {
+                                    headersURLs.append(headerURL)
+                                }
                             }
                         }
                     }
+
+                    let fworkName = binaryName
+
+                    process.arguments!.append(contentsOf: [
+                            libraryMainURL.path
+                        ]+(target.isApple ? ["-install_name", "@rpath/\(fworkName).framework/\(fworkName)"] : [])+[
+                            "-o", directory.appendingPathComponent(fworkName).path
+                        ])
+                    process.launch()
+                    process.waitUntilExit()
+
+                    if process.terminationStatus != 0 {
+                        throw MergeError(programName: "clang", exitCode: Int(process.terminationStatus))
+                    }
+
+                    try FileManager.default.removeItem(at: libraryMainURL)
+
+                    let framework = Framework(binaryURL: directory.appendingPathComponent(fworkName), includeURLs: includeURLs, headersURLs: headersURLs, bundleIdentifierPrefix: bundleIdentifierPrefix)
+                    staticArchiveFrameworks.append(try framework.write(to: directory))
+                    try FileManager.default.removeItem(at: directory.appendingPathComponent(fworkName))
                 }
-
-                let fworkName = binaryName ?? directory.deletingLastPathComponent().deletingLastPathComponent().lastPathComponent
-
-                process.arguments!.append(contentsOf: [
-                        libraryMainURL.path
-                    ]+(target.isApple ? ["-install_name", "@rpath/\(fworkName).framework/\(fworkName)"] : [])+[
-                        "-o", directory.appendingPathComponent(fworkName).path
-                    ])
-                process.launch()
-                process.waitUntilExit()
-
-                if process.terminationStatus != 0 {
-                    throw MergeError(programName: "clang", exitCode: Int(process.terminationStatus))
-                }
-
-                try FileManager.default.removeItem(at: libraryMainURL)
-
-                let framework = Framework(binaryURL: directory.appendingPathComponent(fworkName), includeURLs: includeURLs, headersURLs: headersURLs, bundleIdentifierPrefix: bundleIdentifierPrefix)
-                staticArchiveFrameworks.append(try framework.write(to: directory))
-                try FileManager.default.removeItem(at: directory.appendingPathComponent(fworkName))
             }
         }
 

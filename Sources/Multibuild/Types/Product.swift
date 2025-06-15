@@ -10,7 +10,7 @@ public struct Product {
         /// - Parameters:
         ///     - mergeIntoDylib: If set to to ´true´, will merge along all other decalred static archives into one dynamic libraries.
         ///     - additionalLinkerFlags: A list of flags passed to the linker.
-        case staticArchive(mergeIntoDylib: Bool, additionalLinkerFlags: [String]?)
+        case staticArchive(mergeIntoDylib: Bool, additionalLinkerFlags: ((Target) -> ([String]))?)
 
         /// A dynamic library.
         /// (Automatically produces frameworks on Apple targets)
@@ -57,8 +57,8 @@ public struct Product {
     /// - Parameters: 
     ///     - path: Path of the binary relative to the build directory.
     ///     - additionalLinkerFlags: Linker flags passed in case of merging libraries.
-    public static func staticArchive(_ path: String, additionalLinkerFlags: [String]? = nil) -> Product {
-        return Product(filePaths: [path], includePath: nil, kind: .staticArchive(mergeIntoDylib: false, additionalLinkerFlags: additionalLinkerFlags))
+    public static func staticArchive(_ path: String) -> Product {
+        return Product(filePaths: [path], includePath: nil, kind: .staticArchive(mergeIntoDylib: false, additionalLinkerFlags: nil))
     }
 
     /// A static archive.
@@ -67,8 +67,8 @@ public struct Product {
     ///     - path: Path of the binary relative to the build directory.
     ///     - includePath: Path of directory containing headers.
     ///     - additionalLinkerFlags: Linker flags passed in case of merging libraries.
-    public static func staticArchive(_ path: String, includePath: String?, additionalLinkerFlags: [String]? = nil) -> Product {
-        return Product(filePaths: [path], includePath: includePath, kind: .staticArchive(mergeIntoDylib: false, additionalLinkerFlags: additionalLinkerFlags))
+    public static func staticArchive(_ path: String, includePath: String?) -> Product {
+        return Product(filePaths: [path], includePath: includePath, kind: .staticArchive(mergeIntoDylib: false, additionalLinkerFlags: nil))
     }
 
     /// A static archive.
@@ -77,8 +77,8 @@ public struct Product {
     ///     - path: Path of the binary relative to the build directory.
     ///     - headers: List of header file paths.
     ///     - additionalLinkerFlags: Linker flags passed in case of merging libraries.
-    public static func staticArchive(_ path: String, headers: [String]?, additionalLinkerFlags: [String]? = nil) -> Product {
-        return Product(filePaths: [path], headers: headers, kind: .staticArchive(mergeIntoDylib: false, additionalLinkerFlags: additionalLinkerFlags))
+    public static func staticArchive(_ path: String, headers: [String]?) -> Product {
+        return Product(filePaths: [path], headers: headers, kind: .staticArchive(mergeIntoDylib: false, additionalLinkerFlags: nil))
     }
 
 
@@ -122,7 +122,7 @@ public struct Product {
     ///     - objectFiles: Path of object files relative to the build directory.
     ///     - binaryName: Custom name for the outputted library. If `nil`, will use the project's name.
     ///     - additionalLinkerFlags: Arguments passed to the linker.
-    public static func dynamicLibrary(staticArchives: [String] = [], objectFiles: [String] = [], binaryName: String? = nil, additionalLinkerFlags: [String]? = nil) -> Product {
+    public static func dynamicLibrary(staticArchives: [String] = [], objectFiles: [String] = [], binaryName: String? = nil, additionalLinkerFlags: ((Target) -> ([String]))? = nil) -> Product {
         return Product(filePaths: staticArchives+objectFiles, binaryName: binaryName, includePath: nil, kind: .staticArchive(mergeIntoDylib: true, additionalLinkerFlags: additionalLinkerFlags))
     }
 
@@ -135,7 +135,7 @@ public struct Product {
     ///     - binaryName: Custom name for the outputted library. If `nil`, will use the project's name.
     ///     - includePath: Path of directory containing header files.
     ///     - additionalLinkerFlags: Arguments passed to the linker.
-    public static func dynamicLibrary(staticArchives: [String] = [], objectFiles: [String] = [], binaryName: String? = nil, includePath: String? = nil, additionalLinkerFlags: [String]? = nil) -> Product {
+    public static func dynamicLibrary(staticArchives: [String] = [], objectFiles: [String] = [], binaryName: String? = nil, includePath: String? = nil, additionalLinkerFlags: ((Target) -> ([String]))? = nil) -> Product {
         return Product(filePaths: staticArchives+objectFiles, binaryName: binaryName, includePath: includePath, kind: .staticArchive(mergeIntoDylib: true, additionalLinkerFlags: additionalLinkerFlags))
     }
 
@@ -148,7 +148,7 @@ public struct Product {
     ///     - binaryName: Custom name for the outputted library. If `nil`, will use the project's name.
     ///     - headers: List of header file paths.
     ///     - additionalLinkerFlags: Arguments passed to the linker.
-    public static func dynamicLibrary(staticArchives: [String] = [], objectFiles: [String] = [], binaryName: String? = nil, headers: [String]?, additionalLinkerFlags: [String]? = nil) -> Product {
+    public static func dynamicLibrary(staticArchives: [String] = [], objectFiles: [String] = [], binaryName: String? = nil, headers: [String]?, additionalLinkerFlags: ((Target) -> ([String]))? = nil) -> Product {
         return Product(filePaths: staticArchives+objectFiles, binaryName: binaryName, headers: headers, kind: .staticArchive(mergeIntoDylib: true, additionalLinkerFlags: additionalLinkerFlags))
     }
 
