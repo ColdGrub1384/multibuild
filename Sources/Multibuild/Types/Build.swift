@@ -274,33 +274,14 @@ public struct Build {
         let universalBuildDir = buildRootDirectory.appendingPathComponent("apple.universal")
         try? FileManager.default.createDirectory(at: universalBuildDir, withIntermediateDirectories: true)
 
-        // -- Create frameworks from dylibs --
-        
-        var dylibFrameworks = [URL]()
-        for dylib in dynamicLibraries {
-            guard let libPath = dylib.libraryPaths.first else {
-                continue
-            }
-            for (_, directory) in buildDirs {
-                
-                let dylibURL = directory.appendingPathComponent(libPath).resolvingSymlinksInPath()
-                let includeURL = dylib.includePath == nil ? nil : directory.appendingPathComponent(dylib.includePath!)
-
-                let framework = Framework(binaryURL: dylibURL, includeURLs: includeURL == nil ? [] : [includeURL!], bundleIdentifierPrefix: bundleIdentifierPrefix)
-                dylibFrameworks.append(try framework.write(to: directory))
-            }
-        }
-        
-        // -- Create dylibs from static archives and object files --
+        var dynamicLibraries = [Product]()
+        var frameworks = [Product]()
         
         var staticArchiveFrameworks = [URL]()
         var staticArchivesLinkerFlags = [String:[((Target) -> [String])?]]()
         var staticArchivesToMergeIntoOneDylib = [String:[Product]]()
         var staticArchives = [Product]()
-
-        var dynamicLibraries = [Product]()
-        var frameworks = [Product]()
-
+        
         for product in products {
             switch product.kind {
                 case .dynamicLibrary:
@@ -328,6 +309,25 @@ public struct Build {
                     frameworks.append(product)
             }
         }
+        
+        // -- Create frameworks from dylibs --
+        
+        var dylibFrameworks = [URL]()
+        for dylib in dynamicLibraries {
+            guard let libPath = dylib.libraryPaths.first else {
+                continue
+            }
+            for (_, directory) in buildDirs {
+                
+                let dylibURL = directory.appendingPathComponent(libPath).resolvingSymlinksInPath()
+                let includeURL = dylib.includePath == nil ? nil : directory.appendingPathComponent(dylib.includePath!)
+
+                let framework = Framework(binaryURL: dylibURL, includeURLs: includeURL == nil ? [] : [includeURL!], bundleIdentifierPrefix: bundleIdentifierPrefix)
+                dylibFrameworks.append(try framework.write(to: directory))
+            }
+        }
+        
+        // -- Create dylibs from static archives and object files --
 
         if staticArchivesToMergeIntoOneDylib.count > 0 {
             for (target, directory) in buildDirs {
