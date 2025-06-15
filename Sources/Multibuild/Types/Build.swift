@@ -277,7 +277,7 @@ public struct Build {
         var dynamicLibraries = [Product]()
         var frameworks = [Product]()
         
-        var staticArchiveFrameworks = [URL]()
+        var staticArchiveFrameworks = [String:[URL]]()
         var staticArchivesLinkerFlags = [String:[((Target) -> [String])?]]()
         var staticArchivesToMergeIntoOneDylib = [String:[Product]]()
         var staticArchives = [Product]()
@@ -393,12 +393,10 @@ public struct Build {
                         }
                     }
 
-                    let fworkName = binaryName
-
                     process.arguments!.append(contentsOf: [
                             libraryMainURL.path
-                        ]+(target.isApple ? ["-install_name", "@rpath/\(fworkName).framework/\(fworkName)"] : [])+[
-                            "-o", directory.appendingPathComponent(fworkName).path
+                        ]+(target.isApple ? ["-install_name", "@rpath/\(binaryName).framework/\(binaryName)"] : [])+[
+                            "-o", directory.appendingPathComponent(binaryName).path
                         ])
                     process.launch()
                     process.waitUntilExit()
@@ -409,9 +407,13 @@ public struct Build {
 
                     try FileManager.default.removeItem(at: libraryMainURL)
 
-                    let framework = Framework(binaryURL: directory.appendingPathComponent(fworkName), includeURLs: includeURLs, headersURLs: headersURLs, bundleIdentifierPrefix: bundleIdentifierPrefix)
-                    staticArchiveFrameworks.append(try framework.write(to: directory))
-                    try FileManager.default.removeItem(at: directory.appendingPathComponent(fworkName))
+                    let framework = Framework(binaryURL: directory.appendingPathComponent(binaryName), includeURLs: includeURLs, headersURLs: headersURLs, bundleIdentifierPrefix: bundleIdentifierPrefix)
+                    if staticArchiveFrameworks[binaryName] == nil {
+                        staticArchiveFrameworks[binaryName] = [try framework.write(to: directory)]
+                    } else {
+                        staticArchiveFrameworks[binaryName]?.append(try framework.write(to: directory))
+                    }
+                    try FileManager.default.removeItem(at: directory.appendingPathComponent(binaryName))
                 }
             }
         }
@@ -445,19 +447,20 @@ public struct Build {
             }
         }
 
-        if staticArchiveFrameworks.count > 0 {
-            try merge(urls: &staticArchiveFrameworks)
+        for (_, _frameworks) in staticArchiveFrameworks {
+            var frameworks = _frameworks
+            try merge(urls: &frameworks)
             let xcodebuild = Process()
             xcodebuild.executableURL = URL(fileURLWithPath: "/usr/bin/xcodebuild")
             xcodebuild.arguments = [
                 "-create-xcframework"
             ]
-            for framework in staticArchiveFrameworks {
+            for framework in frameworks {
                 xcodebuild.arguments!.append(contentsOf: [
                     "-framework", framework.path
                 ])
             }
-            let xcframework = universalBuildDir.appendingPathComponent(staticArchiveFrameworks[0].deletingPathExtension().lastPathComponent).appendingPathExtension("xcframework")
+            let xcframework = universalBuildDir.appendingPathComponent(frameworks[0].deletingPathExtension().lastPathComponent).appendingPathExtension("xcframework")
             if FileManager.default.fileExists(atPath: xcframework.path) {
                 try FileManager.default.removeItem(at: xcframework)
             }
