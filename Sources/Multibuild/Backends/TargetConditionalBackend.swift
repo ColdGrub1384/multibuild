@@ -6,6 +6,18 @@ public struct TargetConditionalBuilder: Builder {
 
     public var products: [Product]
 
+    public var environment: ((Target) -> [String : String])? {
+        get {
+            { target in
+                block(target).environment?(target) ?? [:]
+            }
+        }
+        
+        set {
+            
+        }
+    }
+    
     /// Initializes a platform dependant build system.
     /// 
     /// - Parameters:
@@ -18,10 +30,6 @@ public struct TargetConditionalBuilder: Builder {
 
     public func outputDirectoryPath(for target: Target) -> String {
         block(target).outputDirectoryPath(for: target)
-    }
-
-    public func environment(for target: Target) -> [String : String] {
-        block(target).environment(for: target)
     }
 
     public func buildScript(for target: Target, forceConfigure: Bool) -> String {

@@ -259,7 +259,7 @@ public struct Project {
 
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/bin/bash")
-            process.environment = builder.environment(for: target)
+            process.environment = builder.environment?(target)
             process.environment?["BUILD_SCRIPT"] = buildScriptURL.path
             for (key, value) in ProcessInfo.processInfo.environment {
                 process.environment?[key] = value

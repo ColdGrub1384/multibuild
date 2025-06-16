@@ -44,7 +44,11 @@ public struct Xcode: Builder {
     ///   - buildSchemes: Schemes to be compiled.
     ///   - buildTargets: Targets to be compiled.
     ///   - configuration: Xcode configuration. (Default value is `"Release"`)
-    public init(products: [Product] = [], source: Source, buildSchemes: [String] = [], buildTargets: [String] = [], configuration: String = "Release") {
+    public init(products: [Product] = [], 
+                source: Source,
+                buildSchemes: [String] = [],
+                buildTargets: [String] = [],
+                configuration: String = "Release") {
         self.products = products
         self.source = source
         self.buildSchemes = buildSchemes

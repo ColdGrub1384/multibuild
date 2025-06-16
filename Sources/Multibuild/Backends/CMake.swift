@@ -41,6 +41,8 @@ public struct CMake: Builder {
     public var options: ((Target) -> [String:String])
 
     public var products: [Product]
+    
+    public var environment: ((Target) -> [String:String])?
 
     /// Initializes a CMake builder.
     /// 
@@ -48,12 +50,17 @@ public struct CMake: Builder {
     ///     - products: List of known products used for packaging operations.
     ///     - generator: CMake generator (defaults to 'Unix Makefiles').
     ///     - options: CMake options from a target being compiled to.
-    public init(products: [Product] = [], generator: Generator = .unixMakefiles, options: ((Target) -> [String:String])? = nil) {
+    ///     - environment: Environment variables for a given target.
+    public init(products: [Product] = [],
+                generator: Generator = .unixMakefiles,
+                options: ((Target) -> [String:String])? = nil,
+                environment: ((Target) -> [String:String])? = nil) {
         self.products = products
         self.generator = generator
         self.options = options ?? { _ in
             [:]
         }
+        self.environment = environment
     }
 
     public func buildScript(for target: Target, forceConfigure: Bool) -> String {

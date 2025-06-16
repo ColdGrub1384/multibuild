@@ -6,6 +6,9 @@ public protocol Builder {
     /// List of known products. Is used for packaging operations such as generating Apple frameworks.
     var products: [Product] { get set }
 
+    /// Environment variables for a given target.
+    var environment: ((Target) -> [String:String])? { get set }
+    
     /// Output directory path.
     /// Default value is "build/<sdk>.arch1(-arch2)".
     /// 
@@ -14,17 +17,6 @@ public protocol Builder {
     ///
     /// - Returns: the relative output directory path of a given target.
     func outputDirectoryPath(for target: Target) -> String
-
-    /// Additional environment variables to set during compilation.
-    /// Default value is an empty dictionary.
-    /// 
-    /// - Note: Will be pasted as is and evaluated by bash. 
-    ///
-    /// - Parameters:
-    ///     - target: The target we're compiling to while needing the environment variables.
-    /// 
-    /// - Returns: A dictionary of environment variable names as keys and their respective value. 
-    func environment(for target: Target) -> [String:String]
 
     /// Build script for given target.
     /// 
@@ -37,12 +29,14 @@ public protocol Builder {
 }
 
 public extension Builder {
+    
+    var environment: ((Target) -> [String:String])? {
+        get { nil }
+        set {     }
+    }
+    
     func outputDirectoryPath(for target: Target) -> String {
         "build/\(target.systemName.rawValue).\(target.architectures.map({ $0.rawValue }).joined(separator: "-"))"
-    }
-
-    func environment(for target: Target) -> [String : String] {
-        [:]
     }
 }
 
