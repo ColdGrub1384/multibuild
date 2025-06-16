@@ -41,9 +41,9 @@ public struct Make: Builder {
             "\($0.replacingOccurrences(of: "\"", with: "\\\""))"
         }).joined(separator: " ")
 
-        var makeCall = makeTargets == nil ? "make" : ""
+        var makeCall = makeTargets == nil ? "make -C '$PROJECT_DIR'" : ""
         for target in makeTargets ?? [] {
-            makeCall += "make \(target)\n"
+            makeCall += "make -C '$PROJECT_DIR' \(target)\n"
         }
 
         return """
@@ -63,7 +63,7 @@ public struct Make: Builder {
         export LDFLAGS="-isysroot $SDK -target $TARGET_TRIPLE \(flags)"
         export PREFIX="$PWD/../../build/$PLATFORM.$ARCHITECTURE"
 
-        \(makeCall) -C "$PROJECT_DIR"
+        \(makeCall)
         """
     }
 }
