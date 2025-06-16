@@ -41,9 +41,9 @@ public struct Make: Builder {
             "\($0.replacingOccurrences(of: "\"", with: "\\\""))"
         }).joined(separator: " ")
 
-        var makeCall = makeTargets == nil ? "make -C '$PROJECT_DIR'" : ""
+        var makeCall = makeTargets == nil ? "make -C \"$PROJECT_DIR\"" : ""
         for target in makeTargets ?? [] {
-            makeCall += "make -C '$PROJECT_DIR' \(target)\n"
+            makeCall += "make -C \"$PROJECT_DIR\" \(target)\n"
         }
 
         return """
@@ -55,7 +55,7 @@ public struct Make: Builder {
         
         mkdir -p "\(outputDirectoryPath(for: target))"
         cd "\(outputDirectoryPath(for: target))"
-        export CC="iosxcrun --sdk $SDK_NAME clang" 
+        export CC="iosxcrun --sdk $SDK_NAME clang"
         export CXX="iosxcrun --sdk $SDK_NAME clang"
         export CPP="$TOOLS_DIR/cpp"
         export CFLAGS="-isysroot $SDK -target $TARGET_TRIPLE \(flags)"

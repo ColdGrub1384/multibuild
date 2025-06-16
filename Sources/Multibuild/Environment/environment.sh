@@ -185,8 +185,6 @@ export ARCHS=$_ARCHS
 _ARCHS=
 export APPLE_TARGET_TRIPLE="$TARGET_TRIPLE"
 
-export BUILD_DIR="$PWD/build/lib.$S"
-
 export OLD_PATH="$PATH"
 export PATH="$TOOLS_DIR/fortran-ios/bin:$TOOLS_DIR:$PATH"
 export CC="$XCRUN --sdk $SDK_NAME clang"
