@@ -62,7 +62,8 @@ public struct Make: Builder {
         export CXXFLAGS="-isysroot $SDK -target $TARGET_TRIPLE \(flags)" 
         export LDFLAGS="-isysroot $SDK -target $TARGET_TRIPLE \(flags)"
         export PREFIX="$PWD/../../build/$PLATFORM.$ARCHITECTURE"
-
+        export BUILD_DIR="$PWD/../../build/$PLATFORM.$ARCHITECTURE"
+        
         \(makeCall)
         """
     }
