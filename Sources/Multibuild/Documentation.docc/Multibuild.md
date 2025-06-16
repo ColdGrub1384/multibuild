@@ -38,5 +38,6 @@ See <doc:getting-started>.
 - ``TargetConditionalBuilder``
 - ``Autoconf``
 - ``CMake``
+- ``Make``
 - ``Python``
 - ``Xcode``
