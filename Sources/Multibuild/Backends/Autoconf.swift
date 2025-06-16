@@ -64,7 +64,7 @@ public struct Autoconf: Builder {
         }
 
         let arguments = (autoconfArguments+(configureArguments?(target) ?? [])).map({
-            "\($0.replacingOccurrences(of: "\"", with: "\\\""))"
+            "\"\($0.replacingOccurrences(of: "\"", with: "\\\""))\""
         }).joined(separator: " ")
 
         var makeCall = makeTargets == nil ? "make" : ""
