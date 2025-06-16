@@ -1,0 +1,3 @@
+#!/bin/bash
+
+xcrun --sdk $SDK_NAME clang -E $@
