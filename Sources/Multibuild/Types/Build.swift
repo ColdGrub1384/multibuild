@@ -178,22 +178,18 @@ public struct Build {
         }
 
         let packageName: String
+        let shortPackageName: String
         if xcodeFrameworks.count == 1 {
-            packageName = "apple-"+xcodeFrameworks[0].deletingPathExtension().lastPathComponent
+            shortPackageName = xcodeFrameworks[0].deletingPathExtension().lastPathComponent
+            packageName = "apple-"+shortPackageName
         } else {
-            packageName = "apple-"+Framework.frameworkify(buildRootDirectory.deletingLastPathComponent())
+            shortPackageName = Framework.frameworkify(buildRootDirectory.deletingLastPathComponent())
+            packageName = "apple-"+shortPackageName
         }
 
         let targets = xcodeFrameworks.map({ $0.deletingPathExtension().lastPathComponent })
-        var libraries = ""
         var binaryTargets = ""
         for target in targets {
-            libraries += """
-                    .library(
-                        name: "\(target)",
-                        targets: ["\(target)"]),\n
-            """
-
             binaryTargets += """
                     .binaryTarget(
                         name: "\(target)",
@@ -208,7 +204,12 @@ public struct Build {
         let package = Package(
             name: "\(packageName)",
             products: [
-        \(libraries)
+                .library(
+                    name: "\(shortPackageName)",
+                    targets: [
+                        \(targets.map({ "\"\($0)\"" }).joined(separator: ", "))
+                    ]
+                )
             ],
             dependencies: [],
             targets: [
