@@ -93,8 +93,13 @@ public struct BuildCommand<BuildPlanType: BuildPlan>: ParsableCommand {
 
     /// Prints a list of declared projects separated by newlines.
     public func doListProjects() {
-        for project in (try? validateProjects()) ?? [] {
-            print(project.directoryURL.lastPathComponent)
+        let plan = BuildPlanType()
+        if plan.project.directoryURL != nil {
+            print(plan.project.directoryURL.lastPathComponent)
+        } else {
+            for subproject in findSubprojects(plan.project) {
+                print(subproject.directoryURL.lastPathComponent)
+            }
         }
     }
 
