@@ -67,10 +67,22 @@ public struct Project {
     /// Dependencies to build before compiling.
     public var dependencies: [Dependency]
 
-    internal var willBuild: ((Target) throws -> Void)?
+    internal var willBuild = [((Target) throws -> Void)]()
 
-    internal var didBuild: ((Target, Error?) throws -> Void)?
+    internal var didBuild = [(Target, Error?) throws -> Void]()
 
+    internal func doWillBuild(_ target: Target) throws {
+        for block in willBuild {
+            try block(target)
+        }
+    }
+    
+    internal func doDidBuild(_ target: Target, _ error: Error?) throws {
+        for block in didBuild {
+            try block(target, error)
+        }
+    }
+    
     internal var _build: Build?
 
     internal init(projects: [Project]) {
@@ -99,9 +111,9 @@ public struct Project {
     ///     - block: Called before building. Takes the target being compiled to as parameter.
     /// 
     /// - Returns: A Project instance that calls `block` before compiling.
-    public func willBuild(_ block: ((Target) throws -> Void)?) -> Project {
+    public func willBuild(_ block: @escaping ((Target) throws -> Void)) -> Project {
         var proj = self
-        proj.willBuild = block
+        proj.willBuild.append(block)
         ProjectNames[directoryURL.lastPathComponent] = proj
         return proj
     }
@@ -112,9 +124,9 @@ public struct Project {
     ///     - block: Called after building. Takes the target being compiled to and an optional error as parameters.
     /// 
     /// - Returns: A Project instance that calls `block` after compiling.
-    public func didBuild(_ block: ((Target, Error?) throws -> Void)?) -> Project {
+    public func didBuild(_ block: @escaping  ((Target, Error?) throws -> Void)) -> Project {
         var proj = self
-        proj.didBuild = block
+        proj.didBuild.append(block)
         ProjectNames[directoryURL.lastPathComponent] = proj
         return proj
     }
@@ -240,7 +252,7 @@ public struct Project {
         }
 
         for target in _targets {
-            try willBuild?(target)
+            try doWillBuild(target)
 
             let gitCheckout: String
             if case .git(let version) = self.version {
@@ -291,11 +303,11 @@ public struct Project {
 
             if process.terminationStatus != 0 {
                 let error = CompileError(exitCode: Int(process.terminationStatus), target: target)
-                try didBuild?(target, error)
+                try doDidBuild(target, error)
                 throw error
             }
 
-            try didBuild?(target, nil)
+            try doDidBuild(target, nil)
         }
 
         BuiltProjects.append(directoryURL)
