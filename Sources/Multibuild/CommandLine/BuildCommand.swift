@@ -132,16 +132,15 @@ public struct BuildCommand<BuildPlanType: BuildPlan>: ParsableCommand {
         var projs = [Project]()
         if project.directoryURL == nil {
             for proj in project.dependencies.compactMap({ $0.project }) {
-                projs.append(proj)
+                if project.directoryURL != nil {
+                    projs.append(proj)
+                } else {
+                    projs.append(contentsOf: findSubprojects(proj))
+                }
             }
         } else {
             projs = [project]
         }
-        
-        for proj in projs {
-            projs.append(contentsOf: findSubprojects(proj))
-        }
-        
         return projs
     }
 
