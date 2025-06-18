@@ -127,6 +127,23 @@ public struct BuildCommand<BuildPlanType: BuildPlan>: ParsableCommand {
             throw ValidationError("Target '\(targetName)' is not supported.\nPass '--list-targets' for a list of targets.")
         }
     }
+    
+    private func findSubprojects(_ project: Project) -> [Project] {
+        var projs = [Project]()
+        if project.directoryURL == nil {
+            for proj in project.dependencies.compactMap({ $0.project }) {
+                projs.append(proj)
+            }
+        } else {
+            projs = [project]
+        }
+        
+        for proj in projs {
+            projs.append(contentsOf: findSubprojects(proj))
+        }
+        
+        return projs
+    }
 
     /// Validates the projects passed as arguments.
     ///
@@ -134,7 +151,7 @@ public struct BuildCommand<BuildPlanType: BuildPlan>: ParsableCommand {
     /// - Throws: ``ArgumentParser.ValidationError``
     public func validateProjects() throws -> [Project] {
         let plan = BuildPlanType()
-        let projects = plan.project.directoryURL != nil ? [plan.project] : plan.project.dependencies.compactMap({ $0.project })
+        let projects = findSubprojects(plan.project)
         let command = try BuildCommand.parse()
         var projectsToCompile = [Project]()
         for projectName in command.projects {

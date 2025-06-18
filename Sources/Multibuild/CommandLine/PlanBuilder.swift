@@ -1,4 +1,5 @@
 /// Block result builder for projects. See ``BuildPlan``.
+/// You can decorate your own properties / functions to construct a project from multiple projects.
 @resultBuilder
 public struct PlanBuilder {
     public static func buildBlock(_ components: Project...) -> Project {
