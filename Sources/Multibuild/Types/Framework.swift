@@ -13,16 +13,16 @@ public struct Framework {
     /// URLs of header files.
     public var headersURLs: [URL]
 
+    /// URL of resources to embed.
+    public var resourcesURLs: [URL]
+    
     /// Bundle Identifier prefix.
     public var bundleIdentifierPrefix: String
 
-    /// SDK name.
     internal var sdkName: Target.SystemName?
 
-    /// Platform name in the Info.plist file.
     internal var platformString: String?
 
-    /// Minimum OS version.
     internal var minimumOSVersion: String?
 
     /// Initializes a framework instance.
@@ -31,11 +31,13 @@ public struct Framework {
     ///   - binaryURL: URL of the binary.
     ///   - includeURLs: URLs of the include directory. Will be merged.
     ///   - headersURLs: URLs of header files.
+    ///   - resourcesURLs: URLs  of resources to embed.
     ///   - bundleIdentifierPrefix: Bundle Identifier prefix.
-    public init(binaryURL: URL, includeURLs: [URL] = [], headersURLs: [URL] = [], bundleIdentifierPrefix: String) {
+    public init(binaryURL: URL, includeURLs: [URL] = [], headersURLs: [URL] = [], resourcesURLs: [URL] = [], bundleIdentifierPrefix: String) {
         self.binaryURL = binaryURL
         self.includeURLs = includeURLs
         self.headersURLs = headersURLs
+        self.resourcesURLs = resourcesURLs
         self.bundleIdentifierPrefix = bundleIdentifierPrefix
         
         self.sdkName = getPlatform()
@@ -185,6 +187,10 @@ public struct Framework {
             let resourcesURL = versionURL.appendingPathComponent("Resources")
             try FileManager.default.createDirectory(at: resourcesURL, withIntermediateDirectories: true)
 
+            for resource in resourcesURLs {
+                try FileManager.default.copyItem(at: resource, to: resourcesURL.appendingPathComponent(resource.lastPathComponent))
+            }
+            
             try FileManager.default.copyItem(at: binaryURL, to: versionURL.appendingPathComponent(binaryName))
             rewriteInstallName(binaryURL: versionURL.appendingPathComponent(binaryName))
             try content.write(to: resourcesURL.appendingPathComponent("Info.plist"), atomically: false, encoding: .utf8)
@@ -205,6 +211,9 @@ public struct Framework {
             try FileManager.default.createSymbolicLink(atPath: frameworkURL.appendingPathComponent("Resources").path, withDestinationPath: "Versions/A/Resources")
             try FileManager.default.createSymbolicLink(atPath: frameworkURL.appendingPathComponent("Versions/Current").path, withDestinationPath: "A")
         } else {
+            for resource in resourcesURLs {
+                try FileManager.default.copyItem(at: resource, to: frameworkURL.appendingPathComponent(resource.lastPathComponent))
+            }
             try FileManager.default.copyItem(at: binaryURL, to: frameworkURL.appendingPathComponent(binaryName))
             rewriteInstallName(binaryURL: frameworkURL.appendingPathComponent(binaryName))
             try content.write(to: frameworkURL.appendingPathComponent("Info.plist"), atomically: false, encoding: .utf8)
