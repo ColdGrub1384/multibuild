@@ -7,6 +7,9 @@ public struct Framework {
     /// URL of the binary.
     public var binaryURL: URL
 
+    /// Overriden  install name of the dynamic library.
+    public var installName: String?
+    
     /// URLs of include directories. Will be merged.
     public var includeURLs: [URL]
 
@@ -29,12 +32,14 @@ public struct Framework {
     /// 
     /// - Parameters:
     ///   - binaryURL: URL of the binary.
+    ///   - installName: Overriden  install name of a dynamic library.
     ///   - includeURLs: URLs of the include directory. Will be merged.
     ///   - headersURLs: URLs of header files.
     ///   - resourcesURLs: URLs  of resources to embed.
     ///   - bundleIdentifierPrefix: Bundle Identifier prefix.
-    public init(binaryURL: URL, includeURLs: [URL] = [], headersURLs: [URL] = [], resourcesURLs: [URL] = [], bundleIdentifierPrefix: String) {
+    public init(binaryURL: URL, installName: String? = nil, includeURLs: [URL] = [], headersURLs: [URL] = [], resourcesURLs: [URL] = [], bundleIdentifierPrefix: String) {
         self.binaryURL = binaryURL
+        self.installName = installName
         self.includeURLs = includeURLs
         self.headersURLs = headersURLs
         self.resourcesURLs = resourcesURLs
@@ -107,7 +112,7 @@ public struct Framework {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/install_name_tool")
         process.arguments = [
-            "-id", "@rpath/\(binaryURL.lastPathComponent).framework/\(binaryURL.lastPathComponent)",
+            "-id", installName ?? "@rpath/\(binaryURL.lastPathComponent).framework/\(binaryURL.lastPathComponent)",
             binaryURL.path
         ]
         process.launch()
