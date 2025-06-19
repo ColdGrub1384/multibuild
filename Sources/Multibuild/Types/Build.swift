@@ -252,6 +252,9 @@ public struct Build {
         try FileManager.default.moveItem(at: packageDir.appendingPathComponent("\(packageName).zip"), to: archiveURL)
         try FileManager.default.removeItem(at: packageDir)
 
+        // keep a symlink for local use
+        try FileManager.default.createSymbolicLink(atPath: packageDir.path, withDestinationPath: "..")
+        
         return archiveURL
     }
 
