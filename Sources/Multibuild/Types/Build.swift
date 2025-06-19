@@ -327,7 +327,7 @@ public struct Build {
                 let dylibURL = directory.appendingPathComponent(libPath).resolvingSymlinksInPath()
                 let includeURL = dylib.includePath == nil ? nil : directory.appendingPathComponent(dylib.includePath!)
 
-                let framework = Framework(binaryURL: dylibURL, installName: dylib.installName, includeURLs: includeURL == nil ? [] : [includeURL!], bundleIdentifierPrefix: bundleIdentifierPrefix)
+                let framework = Framework(binaryURL: dylibURL, installName: dylib.installName, includeURLs: includeURL == nil ? [] : [includeURL!], resourcesURLs: dylib.resources.map({ directory.appendingPathComponent($0) }), bundleIdentifierPrefix: bundleIdentifierPrefix)
                 dylibFrameworks[target]?.append(try framework.write(to: directory))
             }
         }
@@ -378,6 +378,7 @@ public struct Build {
 
                     var includeURLs = [URL]()
                     var headersURLs = [URL]()
+                    var resourcesURLs = [URL]()
                     for staticArchive in staticArchives {
                         for libPath in staticArchive.libraryPaths {
                             let path = directory.appendingPathComponent(libPath).resolvingSymlinksInPath().path
@@ -389,6 +390,9 @@ public struct Build {
                             } else {
                                 process.arguments!.append(path)
                             }
+                        }
+                        for resource in staticArchive.resources {
+                            resourcesURLs.append(directory.appendingPathComponent(resource))
                         }
                         if let includePath = staticArchive.includePath {
                             let includeURL = directory.appendingPathComponent(includePath)
@@ -420,7 +424,7 @@ public struct Build {
 
                     try FileManager.default.removeItem(at: libraryMainURL)
 
-                    let framework = Framework(binaryURL: directory.appendingPathComponent(binaryName), installName: installName, includeURLs: includeURLs, headersURLs: headersURLs, bundleIdentifierPrefix: bundleIdentifierPrefix)
+                    let framework = Framework(binaryURL: directory.appendingPathComponent(binaryName), installName: installName, includeURLs: includeURLs, headersURLs: headersURLs, resourcesURLs: resourcesURLs, bundleIdentifierPrefix: bundleIdentifierPrefix)
                     if staticArchiveFrameworks[binaryName] == nil {
                         staticArchiveFrameworks[binaryName] = [try framework.write(to: directory)]
                     } else {
