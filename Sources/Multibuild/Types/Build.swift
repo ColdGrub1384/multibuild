@@ -253,7 +253,7 @@ public struct Build {
         try FileManager.default.removeItem(at: packageDir)
 
         // keep a symlink for local use
-        try FileManager.default.createSymbolicLink(atPath: packageDir.path, withDestinationPath: "..")
+        try FileManager.default.createSymbolicLink(atPath: packageDir.path, withDestinationPath: ".")
         
         return archiveURL
     }
