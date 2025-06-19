@@ -64,8 +64,34 @@ public struct Project {
     /// Build system.
     public var builder: Builder!
 
+    private var _dependencies = [Dependency]()
+    
     /// Dependencies to build before compiling.
-    public var dependencies: [Dependency]
+    public var dependencies: [Dependency] {
+        set {
+            _dependencies = newValue
+        }
+        
+        get {
+            func find(deps: [Dependency]) -> [Dependency] {
+                var _deps = [Dependency]()
+                for dep in deps {
+                    if let proj = dep.project {
+                        if proj.directoryURL == nil {
+                            _deps.append(contentsOf: find(deps: proj.dependencies))
+                        } else {
+                            _deps.append(dep)
+                        }
+                    } else {
+                        _deps.append(dep)
+                    }
+                }
+                return _deps
+            }
+            
+            return find(deps: _dependencies)
+        }
+    }
 
     internal var willBuild = [((Target) throws -> Void)]()
 
