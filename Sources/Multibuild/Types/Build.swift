@@ -313,18 +313,22 @@ public struct Build {
         
         // -- Create frameworks from dylibs --
         
-        var dylibFrameworks = [URL]()
+        var dylibFrameworks = [Target:[URL]]()
         for dylib in dynamicLibraries {
             guard let libPath = dylib.libraryPaths.first else {
                 continue
             }
-            for (_, directory) in buildDirs {
+            for (target, directory) in buildDirs {
+                
+                if !dylibFrameworks.contains(where: { $0.key == target }) {
+                    dylibFrameworks[target] = []
+                }
                 
                 let dylibURL = directory.appendingPathComponent(libPath).resolvingSymlinksInPath()
                 let includeURL = dylib.includePath == nil ? nil : directory.appendingPathComponent(dylib.includePath!)
 
                 let framework = Framework(binaryURL: dylibURL, installName: dylib.installName, includeURLs: includeURL == nil ? [] : [includeURL!], bundleIdentifierPrefix: bundleIdentifierPrefix)
-                dylibFrameworks.append(try framework.write(to: directory))
+                dylibFrameworks[target]?.append(try framework.write(to: directory))
             }
         }
         
@@ -431,28 +435,48 @@ public struct Build {
         
         var xcframeworks = [URL]()
         if dylibFrameworks.count > 0 {
-            try merge(urls: &dylibFrameworks)
-            let xcodebuild = Process()
-            xcodebuild.executableURL = URL(fileURLWithPath: "/usr/bin/xcodebuild")
-            xcodebuild.arguments = [
-                "-create-xcframework"
-            ]
-            for framework in dylibFrameworks {
-                xcodebuild.arguments!.append(contentsOf: [
-                    "-framework", framework.path
-                ])
+            var allFrameworks = [String:[URL]]() // group frameworks by name
+            for (_, frameworks) in dylibFrameworks {
+                guard frameworks.count > 0 else {
+                    continue
+                }
+                
+                for framework in frameworks {
+                    if !allFrameworks.contains(where: { $0.key == framework.lastPathComponent }) {
+                        allFrameworks[framework.lastPathComponent] = []
+                    }
+                    
+                    allFrameworks[framework.lastPathComponent]?.append(framework)
+                }
             }
-            let xcframework = universalBuildDir.appendingPathComponent(dylibFrameworks[0].deletingPathExtension().lastPathComponent).appendingPathExtension("xcframework")
-            if FileManager.default.fileExists(atPath: xcframework.path) {
-                try FileManager.default.removeItem(at: xcframework)
-            }
-            xcframeworks.append(xcframework)
-            xcodebuild.arguments!.append(contentsOf: ["-output", xcframework.path])
-            xcodebuild.launch()
-            xcodebuild.waitUntilExit()
+            
+            for (_, frameworks) in allFrameworks {
+                
+                var dylibFrameworks = frameworks
+                
+                try merge(urls: &dylibFrameworks)
+                let xcodebuild = Process()
+                xcodebuild.executableURL = URL(fileURLWithPath: "/usr/bin/xcodebuild")
+                xcodebuild.arguments = [
+                    "-create-xcframework"
+                ]
+                for framework in dylibFrameworks {
+                    xcodebuild.arguments!.append(contentsOf: [
+                        "-framework", framework.path
+                    ])
+                }
+                let xcframework = universalBuildDir.appendingPathComponent(dylibFrameworks[0].deletingPathExtension().lastPathComponent).appendingPathExtension("xcframework")
+                if FileManager.default.fileExists(atPath: xcframework.path) {
+                    try FileManager.default.removeItem(at: xcframework)
+                }
+                xcframeworks.append(xcframework)
+                xcodebuild.arguments!.append(contentsOf: ["-output", xcframework.path])
+                xcodebuild.launch()
+                xcodebuild.waitUntilExit()
 
-            if xcodebuild.terminationStatus != 0 {
-                throw MergeError(programName: "xcodebuild", exitCode: Int(xcodebuild.terminationStatus))
+                if xcodebuild.terminationStatus != 0 {
+                    throw MergeError(programName: "xcodebuild", exitCode: Int(xcodebuild.terminationStatus))
+                }
             }
         }
 
