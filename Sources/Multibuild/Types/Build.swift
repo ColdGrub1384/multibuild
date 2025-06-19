@@ -220,13 +220,16 @@ public struct Build {
 
         let packageDir = appleUniversalBuildDirectoryURL.appendingPathComponent(packageName)
         let packageManifestURL = packageDir.appendingPathComponent("Package.swift")
-
+        let localPackageManifestURL = appleUniversalBuildDirectoryURL.appendingPathComponent("Package.swift")
+        
         if FileManager.default.fileExists(atPath: packageDir.path) {
             try FileManager.default.removeItem(at: packageDir)
         }
 
         try FileManager.default.createDirectory(at: packageDir, withIntermediateDirectories: true)
         try packageManifest.write(to: packageManifestURL, atomically: true, encoding: .utf8)
+        try packageManifest.write(to: localPackageManifestURL, atomically: true, encoding: .utf8)
+        
         for framework in xcodeFrameworks {
             try FileManager.default.copyItem(at: framework, to: packageDir.appendingPathComponent(framework.lastPathComponent))
         }
