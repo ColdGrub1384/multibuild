@@ -38,7 +38,7 @@ public struct Framework {
     ///   - resourcesURLs: URLs  of resources to embed.
     ///   - bundleIdentifierPrefix: Bundle Identifier prefix.
     public init(binaryURL: URL, installName: String? = nil, includeURLs: [URL] = [], headersURLs: [URL] = [], resourcesURLs: [URL] = [], bundleIdentifierPrefix: String) {
-        self.binaryURL = binaryURL
+        self.binaryURL = binaryURL.resolvingSymlinksInPath()
         self.installName = installName
         self.includeURLs = includeURLs
         self.headersURLs = headersURLs
@@ -140,7 +140,7 @@ public struct Framework {
         }
     }
 
-    internal  static func frameworkify(_ url: URL) -> String {
+    internal static func frameworkify(_ url: URL) -> String {
         var binaryName = url.deletingPathExtension().lastPathComponent
         if binaryName.hasPrefix("lib") {
             binaryName = String(binaryName.dropFirst(3))
