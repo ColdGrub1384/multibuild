@@ -19,12 +19,18 @@ public struct Project {
     }
 
     internal func format(version: String) -> String {
-        let okayChars : Set<Character> = Set("0123456789.")
-        var version = String(version.filter {okayChars.contains($0) })
-        if version.hasPrefix(".") {
-            version.removeFirst()
+        var newVersion = ""
+        for char in version {
+            if char == "v" {
+                continue
+            } else if Set("0123456789.").contains(char) {
+                newVersion.append(char)
+            } else {
+                break
+            }
         }
-        return version
+        
+        return newVersion
     }
 
     internal var versionString: String? {
