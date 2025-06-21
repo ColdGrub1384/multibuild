@@ -165,7 +165,8 @@ public struct Framework {
             exit(1)
         }
 
-        let plainName = binaryURL.lastPathComponent
+        let plainName = binaryURL.deletingPathExtension().lastPathComponent
+                                    .replacingOccurrences(of: "_", with: "")
                                     .replacingOccurrences(of: "-", with: "")
                                     .replacingOccurrences(of: " ", with: "")
                                     .replacingOccurrences(of: ".", with: "")
