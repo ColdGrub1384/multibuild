@@ -25,7 +25,7 @@ public struct Project {
                 continue
             } else if Set("0123456789.").contains(char) {
                 newVersion.append(char)
-            } else {
+            } else if !newVersion.isEmpty {
                 break
             }
         }
