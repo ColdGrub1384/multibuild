@@ -139,6 +139,7 @@ public struct Product {
     ///     - binaryName: Custom name for the outputted library. If `nil`, will use the project's name.
     ///     - installName: Overriden  install name of a dynamic library.
     ///     - additionalLinkerFlags: Arguments passed to the linker. Can reference paths relative to the build directory.
+    ///     - resources: Path of resources to package alongside the binary relative to the build directory.
     public static func dynamicLibrary(staticArchives: [String] = [],
                                       objectFiles: [String] = [],
                                       binaryName: String? = nil,
