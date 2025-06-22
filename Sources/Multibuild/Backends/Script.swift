@@ -22,7 +22,7 @@ public struct Script: Builder {
     /// 
     /// - Parameters:
     ///     - products: Products of the compilation used for packaging operations.
-    ///     - makeTargets: If not `nil`, will call make for all the specified targets.
+    ///     - content: Content of the script.
     ///     - environment: Environment variables for a given target.
     public init(products: [Product], content: Content, environment: ((Target) -> [String:String])? = nil) {
         self.products = products

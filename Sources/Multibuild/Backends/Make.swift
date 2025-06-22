@@ -21,7 +21,6 @@ public struct Make: Builder {
     ///     - additionalCompilerFlags: Target specific flags passed to the compiler.
     public init(products: [Product],
                 makeTargets: [String]? = nil,
-                configureArguments: ((Target) -> [String])? = nil,
                 environment: ((Target) -> [String:String])? = nil,
                 additionalCompilerFlags: ((Target) -> [String])? = nil) {
         self.products = products

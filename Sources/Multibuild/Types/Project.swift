@@ -127,6 +127,7 @@ public struct Project {
     ///   - directoryURL: Root location of the project. 
     ///   - version: A Version specified for packaging and checking out if it is a git version.
     ///   - patchURL: The URL of a patch to apply before compiling. Will be undone after.
+    ///   - dependencies: Dependencies to build before compiling.
     ///   - builder: Build system.
     public init(directoryURL: URL, version: Version? = nil, patchURL: URL? = nil, dependencies: [Dependency] = [], builder: Builder) {
         self.directoryURL = directoryURL

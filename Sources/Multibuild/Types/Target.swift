@@ -54,7 +54,7 @@ public struct Target: Hashable, ExpressibleByArgument {
     /// - Note: 
     ///     By default, compiling to a target with multiple architectures produces single architecture binaries. 
     ///     That means the project compiles once per architecture and then it merges the libraries. 
-    ///     This behaviour can be changed by setting the `universalBuild` parameter of the ``Project/compile`` function.
+    ///     This behaviour can be changed by setting the `universalBuild` parameter of the ``compile`` functions in ``Project``.
     public var architectures: [Architecture]
 
     /// Target triple. For example, `arm64-apple-ios13.0`.

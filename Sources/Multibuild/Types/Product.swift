@@ -138,7 +138,7 @@ public struct Product {
     ///     - objectFiles: Path of object files relative to the build directory.
     ///     - binaryName: Custom name for the outputted library. If `nil`, will use the project's name.
     ///     - installName: Overriden  install name of a dynamic library.
-    ///     - additionalLinkerFlags: Arguments passed to the linker.. Can reference paths relative to the build directory.
+    ///     - additionalLinkerFlags: Arguments passed to the linker. Can reference paths relative to the build directory.
     public static func dynamicLibrary(staticArchives: [String] = [],
                                       objectFiles: [String] = [],
                                       binaryName: String? = nil,
@@ -178,7 +178,7 @@ public struct Product {
     ///     - binaryName: Custom name for the outputted library. If `nil`, will use the project's name.
     ///     - installName: Overriden  install name of a dynamic library.
     ///     - headers: List of header file paths.
-    ///     - additionalLinkerFlags: Arguments passed to the linker.. Can reference paths relative to the build directory.
+    ///     - additionalLinkerFlags: Arguments passed to the linker. Can reference paths relative to the build directory.
     ///     - resources: Path of resources to package alongside the binary relative to the build directory.
     public static func dynamicLibrary(staticArchives: [String] = [], objectFiles: [String] = [], binaryName: String? = nil, installName: String? = nil, headers: [String]?, additionalLinkerFlags: ((Target) -> ([String]))? = nil, resources: [String] = []) -> Product {
         return Product(filePaths: staticArchives+objectFiles, binaryName: binaryName, installName: installName, headers: headers, resources: resources, kind: .staticArchive(mergeIntoDylib: true, additionalLinkerFlags: additionalLinkerFlags))

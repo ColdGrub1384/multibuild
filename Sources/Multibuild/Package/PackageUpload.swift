@@ -63,7 +63,6 @@ public struct PackageUpload {
     /// 
     /// - Parameters:
     ///   - kind: Kind of Package Registry.
-    ///   - scope: Scope in the package registry.
     ///   - registryURL: URL of the package registry. Path must contain scope if it is a Swift Package Registry.
     ///   - user: Authentication credentials.
     public init(kind: Kind, registryURL: URL, user: User) {
