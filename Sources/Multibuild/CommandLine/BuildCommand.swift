@@ -181,47 +181,24 @@ public struct BuildCommand<BuildPlanType: BuildPlan>: ParsableCommand {
 
         if !noCompile {
             if projects.isEmpty {
-                try plan.project.compile(for: targets, forceConfigure: forceConfigure)
+                try plan.project.compile(
+                    for: targets,
+                    universalBuild: false,
+                    forceConfigure: forceConfigure,
+                    package: !noPackaging,
+                    bundleIdentifierPrefix: plan.bundleIdentifierPrefix,
+                    upload: !noUpload,
+                    packageUpload: plan.packageUpload)
             } else {
                 for project in projects {
-                    try project.compile(for: targets, forceConfigure: forceConfigure)
-                }
-            }
-        }
-        
-        if !noPackaging {
-            if plan.platform.supportedTargets.contains(where: { $0.isApple }) {
-                for dep in plan.project.dependencies {
-                    var proj = dep.project
-                    if proj == nil, let name = dep.name {
-                        proj = ProjectNames[name]
-                    }
-                    
-                    if !projects.isEmpty {
-                        guard projects.contains(where: { $0.directoryURL.lastPathComponent == proj?.directoryURL.lastPathComponent }) else {
-                            continue
-                        }
-                    }
-                    
-                    if let frameworks = try proj?.build?.createXcodeFrameworks(bundleIdentifierPrefix: plan.bundleIdentifierPrefix) {
-                        for framework in frameworks {
-                            let archiveURL = framework.deletingLastPathComponent().appendingPathComponent("apple-universal-\(framework.lastPathComponent).zip")
-                            try FileManager.default.zipItem(at: framework, to: archiveURL)
-                            let archive = PackageArchive(url: archiveURL, name: proj?.directoryURL.lastPathComponent ?? framework.deletingPathExtension().lastPathComponent, version: proj?.versionString, kind: .xcodeFramework)
-                            if let upload = plan.packageUpload(for: archive), !noUpload {
-                                try upload.start(with: archive)
-                            }
-                            try FileManager.default.removeItem(at: archiveURL)
-                        }
-                        
-                        if let archiveURL = try proj?.build?.createSwiftPackage(xcodeFrameworks: frameworks) {
-                            print("Generated Swift Package at \(archiveURL.path)")
-                            let archive = PackageArchive(url: archiveURL, name: archiveURL.deletingPathExtension().lastPathComponent, version: proj?.versionString, kind: .swiftPackage)
-                            if let upload = plan.packageUpload(for: archive), !noUpload {
-                                try upload.start(with: archive)
-                            }
-                        }
-                    }
+                    try project.compile(
+                        for: targets,
+                        universalBuild: false,
+                        forceConfigure: forceConfigure,
+                        package: !noPackaging,
+                        bundleIdentifierPrefix: plan.bundleIdentifierPrefix,
+                        upload: !noUpload,
+                        packageUpload: plan.packageUpload)
                 }
             }
         }

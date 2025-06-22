@@ -231,6 +231,26 @@ public struct Project {
     ///     - universalBuild: If set to ´true´, will target multiple architectures when they're the same SDK.
     ///     - forceConfigure: Force regenerating configuration files.
     public func compile(for targets: [Target], universalBuild: Bool = false, forceConfigure: Bool = false) throws {
+        try compile(for: targets, 
+                    universalBuild: universalBuild,
+                    forceConfigure: forceConfigure,
+                    package: false,
+                    bundleIdentifierPrefix: "",
+                    upload: false,
+                    packageUpload: { _ in
+            nil
+        })
+    }
+
+    internal func compile(
+        for targets: [Target], 
+        universalBuild: Bool, 
+        forceConfigure: Bool, 
+        package: Bool, 
+        bundleIdentifierPrefix: String, 
+        upload: Bool, 
+        packageUpload: ((PackageArchive) -> PackageUpload?)) throws {
+
         var _targets = [Target]()
         if universalBuild {
             _targets = targets
@@ -343,5 +363,28 @@ public struct Project {
         }
 
         BuiltProjects.append(directoryURL)
+
+        // package
+        if targets.contains(where: { $0.isApple }) && package {
+            if let frameworks = try build?.createXcodeFrameworks(bundleIdentifierPrefix: bundleIdentifierPrefix) {
+                for framework in frameworks {
+                    let archiveURL = framework.deletingLastPathComponent().appendingPathComponent("apple-universal-\(framework.lastPathComponent).zip")
+                    try FileManager.default.zipItem(at: framework, to: archiveURL)
+                    let archive = PackageArchive(url: archiveURL, name: directoryURL.lastPathComponent, version: versionString, kind: .xcodeFramework)
+                    if let packageUpload = packageUpload(archive), upload {
+                        try packageUpload.start(with: archive)
+                    }
+                    try FileManager.default.removeItem(at: archiveURL)
+                }
+
+                if let archiveURL = try build?.createSwiftPackage(xcodeFrameworks: frameworks) {
+                    print("Generated Swift Package at \(archiveURL.path)")
+                    let archive = PackageArchive(url: archiveURL, name: archiveURL.deletingPathExtension().lastPathComponent, version: versionString, kind: .swiftPackage)
+                    if let packageUpload = packageUpload(archive), upload {
+                        try packageUpload.start(with: archive)
+                    }
+                }
+            }
+        }
     }
 }
