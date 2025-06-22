@@ -7,6 +7,9 @@ public struct Framework {
     /// URL of the binary.
     public var binaryURL: URL
 
+    /// Version of the framework in Info.plist.
+    public var version: String
+
     /// Overriden  install name of the dynamic library.
     public var installName: String?
     
@@ -32,13 +35,23 @@ public struct Framework {
     /// 
     /// - Parameters:
     ///   - binaryURL: URL of the binary.
+    ///   - version: Version of the framework in Info.plist. Defaults to `1.0`.
     ///   - installName: Overriden  install name of a dynamic library.
     ///   - includeURLs: URLs of the include directory. Will be merged.
     ///   - headersURLs: URLs of header files.
     ///   - resourcesURLs: URLs  of resources to embed.
     ///   - bundleIdentifierPrefix: Bundle Identifier prefix.
-    public init(binaryURL: URL, installName: String? = nil, includeURLs: [URL] = [], headersURLs: [URL] = [], resourcesURLs: [URL] = [], bundleIdentifierPrefix: String) {
+    public init(
+        binaryURL: URL,
+        version: String = "1.0",
+        installName: String? = nil,
+        includeURLs: [URL] = [],
+        headersURLs: [URL] = [],
+        resourcesURLs: [URL] = [],
+        bundleIdentifierPrefix: String) {
+    
         self.binaryURL = binaryURL.resolvingSymlinksInPath()
+        self.version = version
         self.installName = installName
         self.includeURLs = includeURLs
         self.headersURLs = headersURLs
@@ -175,6 +188,7 @@ public struct Framework {
 
         var content = try String(contentsOf: infoPlist)
         content = content.replacingOccurrences(of: "%BUNDLE_ID%", with: "\(bundleIdentifierPrefix).\(plainName)")
+        content = content.replacingOccurrences(of: "%VERSION%", with: version)
         content = content.replacingOccurrences(of: "%NAME%", with: binaryName)
         content = content.replacingOccurrences(of: "%MINIMUM_OS_VERSION%", with: minimumOSVersion ?? "")
         content = content.replacingOccurrences(of: "%PLATFORM%", with: platformString ?? "")

@@ -16,27 +16,11 @@ public struct Project {
 
         /// A custom version string.
         case custom(String)
-    }
 
-    internal func format(version: String) -> String {
-        var newVersion = ""
-        for char in version {
-            if char == "v" {
-                continue
-            } else if Set("0123456789.").contains(char) {
-                newVersion.append(char)
-            } else if !newVersion.isEmpty {
-                break
-            }
-        }
-        
-        return newVersion
-    }
-
-    internal var versionString: String? {
-        switch version {
+        internal var string: String? {
+            switch self {
             case .custom(let version):
-                return format(version: version)
+                return Self.format(version: version)
             case .git(_):
                 let outputPipe = Pipe()
                 let process = Process()
@@ -52,10 +36,30 @@ public struct Project {
                     return nil
                 }
 
-                return format(version: versionString)
+                return Self.format(version: versionString)
             default:
                 return nil
+            }
         }
+    }
+
+    internal static func format(version: String) -> String {
+        var newVersion = ""
+        for char in version {
+            if char == "v" {
+                continue
+            } else if Set("0123456789.").contains(char) {
+                newVersion.append(char)
+            } else if !newVersion.isEmpty {
+                break
+            }
+        }
+        
+        return newVersion
+    }
+
+    internal var versionString: String? {
+        
     }
 
     /// Root location of the project. 
