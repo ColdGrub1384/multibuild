@@ -325,7 +325,7 @@ public struct Project {
                 """.write(to: checkoutScriptURL, atomically: false, encoding: .utf8)
 
                 let checkout = Process()
-                checkout.currentDirectoryURL = directoryURL
+                checkout.currentDirectoryURL = directoryURL.resolvingSymlinksInPath()
                 checkout.executableURL = URL(fileURLWithPath: "/bin/bash")
                 checkout.arguments = [checkoutScriptURL.path]
                 checkout.launch()
