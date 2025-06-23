@@ -338,7 +338,10 @@ public struct Project {
                 try doWillBuild(target)
 
                 let buildScriptURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("\(UUID().uuidString).sh")
-                try builder.buildScript(for: target, forceConfigure: forceConfigure).write(to: buildScriptURL, atomically: false, encoding: .utf8)
+                try """
+                cd \"\(directoryURL.path.replacingOccurrences(of: "\"", with: "\\\""))\"
+                \(builder.buildScript(for: target, forceConfigure: forceConfigure))
+                """.write(to: buildScriptURL, atomically: false, encoding: .utf8)
 
                 let process = Process()
                 process.executableURL = URL(fileURLWithPath: "/bin/bash")
