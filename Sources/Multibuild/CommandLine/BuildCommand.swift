@@ -179,27 +179,27 @@ public struct BuildCommand<BuildPlanType: BuildPlan>: ParsableCommand {
         let projects = try validateProjects()
         let targets = self.targets.isEmpty ? plan.platform.supportedTargets : self.targets
 
-        if !noCompile {
-            if projects.isEmpty {
-                try plan.project.compile(
+        if projects.isEmpty {
+            try plan.project.build(
+                for: targets,
+                universalBuild: false,
+                forceConfigure: forceConfigure,
+                skipBuild: noCompile,
+                package: !noPackaging,
+                bundleIdentifierPrefix: plan.bundleIdentifierPrefix,
+                upload: !noUpload,
+                packageUpload: plan.packageUpload)
+        } else {
+            for project in projects {
+                try project.build(
                     for: targets,
                     universalBuild: false,
                     forceConfigure: forceConfigure,
+                    skipBuild: noCompile,
                     package: !noPackaging,
                     bundleIdentifierPrefix: plan.bundleIdentifierPrefix,
                     upload: !noUpload,
                     packageUpload: plan.packageUpload)
-            } else {
-                for project in projects {
-                    try project.compile(
-                        for: targets,
-                        universalBuild: false,
-                        forceConfigure: forceConfigure,
-                        package: !noPackaging,
-                        bundleIdentifierPrefix: plan.bundleIdentifierPrefix,
-                        upload: !noUpload,
-                        packageUpload: plan.packageUpload)
-                }
             }
         }
     }

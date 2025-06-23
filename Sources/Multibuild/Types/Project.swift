@@ -232,9 +232,10 @@ public struct Project {
     ///     - universalBuild: If set to ´true´, will target multiple architectures when they're the same SDK.
     ///     - forceConfigure: Force regenerating configuration files.
     public func compile(for targets: [Target], universalBuild: Bool = false, forceConfigure: Bool = false) throws {
-        try compile(for: targets, 
+        try build(for: targets, 
                     universalBuild: universalBuild,
                     forceConfigure: forceConfigure,
+                    skipBuild: false,
                     package: false,
                     bundleIdentifierPrefix: "",
                     upload: false,
@@ -243,124 +244,127 @@ public struct Project {
         })
     }
 
-    internal func compile(
-        for targets: [Target], 
-        universalBuild: Bool, 
-        forceConfigure: Bool, 
-        package: Bool, 
-        bundleIdentifierPrefix: String, 
-        upload: Bool, 
+    internal func build(
+        for targets: [Target],
+        universalBuild: Bool,
+        forceConfigure: Bool,
+        skipBuild: Bool,
+        package: Bool,
+        bundleIdentifierPrefix: String,
+        upload: Bool,
         packageUpload: ((PackageArchive) -> PackageUpload?)) throws {
 
-        var _targets = [Target]()
-        if universalBuild {
-            _targets = targets
-        } else { // On non universal builds, split targets per each architecture
-            for target in targets {
-                for arch in target.architectures {
-                    _targets.append(Target(systemName: target.systemName, architectures: [arch]))
-                }
-            }
-        }
-
-        for dep in dependencies {
-            var project = dep.project
-            if project == nil, let name = dep.name {
-                project = ProjectNames[name]
-                if project == nil {
-                    throw Dependency.NotFoundError(dependencyName: name)
-                }
-            }
-
-            guard !BuiltProjects.contains(project!.directoryURL) else {
-                continue
-            }
-
-            // Build only if products are not present
-            var compile = forceConfigure
-            if project!.builder.products.isEmpty {
-                compile = true
-            }
-            for product in project!.builder.products {
-                for path in product.libraryPaths {
-                    for target in _targets {
-                        guard let url = project!.build?.buildDirectoryURL(for: target)?.appendingPathComponent(path) else {
-                            compile = true
-                            break
-                        }
-                        if !FileManager.default.fileExists(atPath: url.path) {
-                            compile = true
-                            break
-                        }
+        if !skipBuild {
+            var _targets = [Target]()
+            if universalBuild {
+                _targets = targets
+            } else { // On non universal builds, split targets per each architecture
+                for target in targets {
+                    for arch in target.architectures {
+                        _targets.append(Target(systemName: target.systemName, architectures: [arch]))
                     }
                 }
             }
-            if compile {
-                try project!.compile(for: targets, universalBuild: universalBuild, forceConfigure: forceConfigure)
-            }
-        }
 
-        guard directoryURL != nil else {
-            return
-        }
+            for dep in dependencies {
+                var project = dep.project
+                if project == nil, let name = dep.name {
+                    project = ProjectNames[name]
+                    if project == nil {
+                        throw Dependency.NotFoundError(dependencyName: name)
+                    }
+                }
 
-        for target in _targets {
-            try doWillBuild(target)
+                guard !BuiltProjects.contains(project!.directoryURL) else {
+                    continue
+                }
 
-            let gitCheckout: String
-            if case .git(let version) = self.version {
-                gitCheckout = "git fetch --tags && git checkout \(version)"
-            } else {
-                gitCheckout = ""
-            }
-
-            let buildScriptURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("\(UUID().uuidString).sh")
-            try """
-            cd "\(directoryURL.path)"
-            \(gitCheckout)
-            \(patchURL != nil ? "git apply \"\(patchURL!.path.replacingOccurrences(of: "\"", with: "\\\""))\"" : "")
-            \(builder.buildScript(for: target, forceConfigure: forceConfigure))
-            """.write(to: buildScriptURL, atomically: false, encoding: .utf8)
-
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/bash")
-            process.environment = [:]
-            process.environment?["BUILD_SCRIPT"] = buildScriptURL.path
-            for (key, value) in ProcessInfo.processInfo.environment {
-                process.environment?[key] = value
-            }
-            for (key, value) in builder.defaultEnvironment(for: target) {
-                process.environment?[key] = value
-            }
-            for (key, value) in builder.environment?(target) ?? [:] {
-                process.environment?[key] = value
-            }
-            process.arguments = [
-                Bundle.module.url(forResource: "Environment/environment", withExtension: "sh")!.path,
-                "3.14"
-            ]
-
-            process.launch()
-            process.waitUntilExit()
-
-            try FileManager.default.removeItem(at: buildScriptURL)
-
-            if let patch = patchURL?.path {
-                let revertPatch = Process()
-                revertPatch.currentDirectoryURL = directoryURL.resolvingSymlinksInPath()
-                revertPatch.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-                revertPatch.arguments = ["apply", "-R", patch]
-                revertPatch.launch()
-                revertPatch.waitUntilExit()
+                // Build only if products are not present
+                var compile = forceConfigure
+                if project!.builder.products.isEmpty {
+                    compile = true
+                }
+                for product in project!.builder.products {
+                    for path in product.libraryPaths {
+                        for target in _targets {
+                            guard let url = project!.build?.buildDirectoryURL(for: target)?.appendingPathComponent(path) else {
+                                compile = true
+                                break
+                            }
+                            if !FileManager.default.fileExists(atPath: url.path) {
+                                compile = true
+                                break
+                            }
+                        }
+                    }
+                }
+                if compile {
+                    try project!.compile(for: targets, universalBuild: universalBuild, forceConfigure: forceConfigure)
+                }
             }
 
-            if process.terminationStatus != 0 {
-                let error = CompileError(exitCode: Int(process.terminationStatus), target: target)
-                try doDidBuild(target, error)
-                throw error
+            guard directoryURL != nil else {
+                return
             }
 
-            try doDidBuild(target, nil)
+            for target in _targets {
+                try doWillBuild(target)
+
+                let gitCheckout: String
+                if case .git(let version) = self.version {
+                    gitCheckout = "git fetch --tags && git checkout \(version)"
+                } else {
+                    gitCheckout = ""
+                }
+
+                let buildScriptURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("\(UUID().uuidString).sh")
+                try """
+                cd "\(directoryURL.path)"
+                \(gitCheckout)
+                \(patchURL != nil ? "git apply \"\(patchURL!.path.replacingOccurrences(of: "\"", with: "\\\""))\"" : "")
+                \(builder.buildScript(for: target, forceConfigure: forceConfigure))
+                """.write(to: buildScriptURL, atomically: false, encoding: .utf8)
+
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/bin/bash")
+                process.environment = [:]
+                process.environment?["BUILD_SCRIPT"] = buildScriptURL.path
+                for (key, value) in ProcessInfo.processInfo.environment {
+                    process.environment?[key] = value
+                }
+                for (key, value) in builder.defaultEnvironment(for: target) {
+                    process.environment?[key] = value
+                }
+                for (key, value) in builder.environment?(target) ?? [:] {
+                    process.environment?[key] = value
+                }
+                process.arguments = [
+                    Bundle.module.url(forResource: "Environment/environment", withExtension: "sh")!.path,
+                    "3.14"
+                ]
+
+                process.launch()
+                process.waitUntilExit()
+
+                try FileManager.default.removeItem(at: buildScriptURL)
+
+                if let patch = patchURL?.path {
+                    let revertPatch = Process()
+                    revertPatch.currentDirectoryURL = directoryURL.resolvingSymlinksInPath()
+                    revertPatch.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+                    revertPatch.arguments = ["apply", "-R", patch]
+                    revertPatch.launch()
+                    revertPatch.waitUntilExit()
+                }
+
+                if process.terminationStatus != 0 {
+                    let error = CompileError(exitCode: Int(process.terminationStatus), target: target)
+                    try doDidBuild(target, error)
+                    throw error
+                }
+
+                try doDidBuild(target, nil)
+            }
         }
 
         BuiltProjects.append(directoryURL)
