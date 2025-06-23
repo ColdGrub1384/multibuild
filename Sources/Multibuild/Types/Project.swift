@@ -308,7 +308,8 @@ public struct Project {
             }
 
             for target in _targets {
-                try doWillBuild(target)
+
+                // Checkout and apply patch
 
                 let gitCheckout: String
                 if case .git(let version) = self.version {
@@ -317,13 +318,32 @@ public struct Project {
                     gitCheckout = ""
                 }
 
-                let buildScriptURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("\(UUID().uuidString).sh")
+                let checkoutScriptURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("\(UUID().uuidString).sh")
                 try """
                 cd "\(directoryURL.path)"
                 \(gitCheckout)
                 \(patchURL != nil ? "git apply \"\(patchURL!.path.replacingOccurrences(of: "\"", with: "\\\""))\"" : "")
-                \(builder.buildScript(for: target, forceConfigure: forceConfigure))
-                """.write(to: buildScriptURL, atomically: false, encoding: .utf8)
+                """.write(to: checkoutScriptURL, atomically: false, encoding: .utf8)
+
+                let checkout = Process()
+                checkout.executableURL = URL(fileURLWithPath: "/bin/bash")
+                checkout.environment = [:]
+                checkout.environment?["BUILD_SCRIPT"] = checkoutScriptURL.path
+                checkout.arguments = [
+                    Bundle.module.url(forResource: "Environment/environment", withExtension: "sh")!.path,
+                    "3.14"
+                ]
+                checkout.launch()
+                checkout.waitUntilExit()
+
+                try FileManager.default.removeItem(at: checkoutScriptURL)
+
+                // Build
+
+                try doWillBuild(target)
+
+                let buildScriptURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("\(UUID().uuidString).sh")
+                try builder.buildScript(for: target, forceConfigure: forceConfigure).write(to: buildScriptURL, atomically: false, encoding: .utf8)
 
                 let process = Process()
                 process.executableURL = URL(fileURLWithPath: "/bin/bash")
@@ -348,6 +368,8 @@ public struct Project {
 
                 try FileManager.default.removeItem(at: buildScriptURL)
 
+                // Undo patch
+
                 if let patch = patchURL?.path {
                     let revertPatch = Process()
                     revertPatch.currentDirectoryURL = directoryURL.resolvingSymlinksInPath()
@@ -356,6 +378,8 @@ public struct Project {
                     revertPatch.launch()
                     revertPatch.waitUntilExit()
                 }
+
+                // Built
 
                 if process.terminationStatus != 0 {
                     let error = CompileError(exitCode: Int(process.terminationStatus), target: target)
@@ -369,7 +393,7 @@ public struct Project {
 
         BuiltProjects.append(directoryURL)
 
-        // package
+        // Package
         if targets.contains(where: { $0.isApple }) && package {
             if let frameworks = try build?.createXcodeFrameworks(bundleIdentifierPrefix: bundleIdentifierPrefix) {
                 for framework in frameworks {
