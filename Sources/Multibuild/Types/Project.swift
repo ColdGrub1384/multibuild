@@ -320,19 +320,14 @@ public struct Project {
 
                 let checkoutScriptURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("\(UUID().uuidString).sh")
                 try """
-                cd "\(directoryURL.path)"
                 \(gitCheckout)
                 \(patchURL != nil ? "git apply \"\(patchURL!.path.replacingOccurrences(of: "\"", with: "\\\""))\"" : "")
                 """.write(to: checkoutScriptURL, atomically: false, encoding: .utf8)
 
                 let checkout = Process()
+                checkout.currentDirectoryURL = directoryURL
                 checkout.executableURL = URL(fileURLWithPath: "/bin/bash")
-                checkout.environment = [:]
-                checkout.environment?["BUILD_SCRIPT"] = checkoutScriptURL.path
-                checkout.arguments = [
-                    Bundle.module.url(forResource: "Environment/environment", withExtension: "sh")!.path,
-                    "3.14"
-                ]
+                checkout.arguments = [checkoutScriptURL.path]
                 checkout.launch()
                 checkout.waitUntilExit()
 
