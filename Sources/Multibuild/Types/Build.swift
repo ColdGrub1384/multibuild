@@ -382,7 +382,7 @@ public struct Build {
                     ]+additionalLinkerFlags+(target.systemName == .maccatalyst ? [
                         "-target",
                         "\(target.architectures.map({ $0.rawValue }).joined(separator: "-"))-apple-ios13.1-macabi"
-                    ] : [])
+                    ] : ["-target", target.triple ?? "unknown-target"])
                     for arch in target.architectures {
                         process.arguments!.append(contentsOf: ["-arch", arch.rawValue])
                     }
