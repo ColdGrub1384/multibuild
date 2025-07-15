@@ -218,14 +218,14 @@ public struct Project {
         public var target: Target
     }
     
-    private static func isGitRepo(directory: URL) -> Bool {
-        guard directory.resolvingSymlinksInPath().path.contains(FileManager.default.urls(for: .userDirectory, in: .allDomainsMask)[0].resolvingSymlinksInPath().path) else {
-            return false
+    private static func gitRepo(directory: URL) -> URL? {
+        guard directory.resolvingSymlinksInPath().path.hasPrefix(FileManager.default.urls(for: .userDirectory, in: .allDomainsMask)[0].resolvingSymlinksInPath().path) else {
+            return nil
         }
         if FileManager.default.fileExists(atPath: directory.appendingPathComponent(".git").path) {
-            return true
+            return directory
         } else {
-            return isGitRepo(directory: directory.deletingLastPathComponent())
+            return gitRepo(directory: directory.deletingLastPathComponent())
         }
     }
 
@@ -340,7 +340,8 @@ public struct Project {
         }
 
         // Checkout and apply patch
-        let isGitRepo = Self.isGitRepo(directory: directoryURL.resolvingSymlinksInPath())
+        let gitRepo = Self.gitRepo(directory: directoryURL.resolvingSymlinksInPath())
+        let isGitRepo = (gitRepo != nil)
         let gitCheckout: String
         if case .git(let version, _) = self.version {
             gitCheckout = "git fetch --tags && git checkout \(version)"
@@ -355,7 +356,7 @@ public struct Project {
         """.write(to: checkoutScriptURL, atomically: false, encoding: .utf8)
 
         let checkout = Process()
-        checkout.currentDirectoryURL = directoryURL.resolvingSymlinksInPath()
+        checkout.currentDirectoryURL = gitRepo ?? directoryURL.resolvingSymlinksInPath()
         checkout.executableURL = URL(fileURLWithPath: "/bin/bash")
         checkout.arguments = [checkoutScriptURL.path]
         checkout.launch()
@@ -486,7 +487,7 @@ public struct Project {
         // Undo patch
         if let patch = patchURL?.path {
             let revertPatch = Process()
-            revertPatch.currentDirectoryURL = directoryURL.resolvingSymlinksInPath()
+            revertPatch.currentDirectoryURL = gitRepo ?? directoryURL.resolvingSymlinksInPath()
             revertPatch.executableURL = URL(fileURLWithPath: "/usr/bin/git")
             if isGitRepo {
                 revertPatch.arguments = ["reset", "--hard", "HEAD~1"]
