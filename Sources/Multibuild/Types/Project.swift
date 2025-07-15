@@ -217,6 +217,17 @@ public struct Project {
         /// The target that was being compiled to.
         public var target: Target
     }
+    
+    private static func isGitRepo(directory: URL) -> Bool {
+        guard directory.resolvingSymlinksInPath().path.contains(FileManager.default.urls(for: .userDirectory, in: .allDomainsMask)[0].resolvingSymlinksInPath().path) else {
+            return false
+        }
+        if FileManager.default.fileExists(atPath: directory.appendingPathComponent(".git").path) {
+            return true
+        } else {
+            return isGitRepo(directory: directory.deletingLastPathComponent())
+        }
+    }
 
     /// Represents the content of the build directory.
     public var build: Build? {
@@ -329,7 +340,7 @@ public struct Project {
         }
 
         // Checkout and apply patch
-        let isGitRepo = (try? FileManager.default.contentsOfDirectory(atPath: directoryURL.path))?.contains(".git") == true
+        let isGitRepo = Self.isGitRepo(directory: directoryURL.resolvingSymlinksInPath())
         let gitCheckout: String
         if case .git(let version, _) = self.version {
             gitCheckout = "git fetch --tags && git checkout \(version)"
