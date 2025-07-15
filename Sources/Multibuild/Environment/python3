@@ -1,3 +1,4 @@
 #!/bin/bash
 
-python3.14 $@
+export PYTHON_EXEC_PATH="$0"
+"$(which cross_python.py)" "$@"

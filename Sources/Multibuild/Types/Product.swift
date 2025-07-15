@@ -20,6 +20,9 @@ public struct Product {
         /// A framework bundle. Ignored on non Apple targets.
         /// (Automatically produces frameworks for Apple targets)
         case framework
+        
+        /// Python wheel.
+        case wheel
     }
 
 
@@ -29,7 +32,7 @@ public struct Product {
     /// Overriden  install name of a dynamic library.
     public var installName: String?
     
-    /// A path of binary libraries.
+    /// Paths of produced libraries.
     public var libraryPaths: [String]
 
     /// The path of the directory containing the header files of the library.
@@ -61,7 +64,6 @@ public struct Product {
         self.resources = resources
         self.kind = kind
     }
-
 
     /// A static archive.
     /// 
@@ -192,5 +194,14 @@ public struct Product {
     ///     - path: Path of the framework.
     public static func framework(_ path: String) -> Product {
         Product(filePaths: [path], binaryName: nil, headers: nil, kind: .framework)
+    }
+    
+    /// A Python wheel.
+    /// It doesn't need to be declared if you use the ``Python`` builder.
+    ///
+    /// - Parameters:
+    ///     - path: Path of the wheel.
+    public static func wheel(_ path: String) -> Product {
+        Product(filePaths: [path], binaryName: nil, headers: nil, kind: .wheel)
     }
 }

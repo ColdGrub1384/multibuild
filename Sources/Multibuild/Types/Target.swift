@@ -1,7 +1,44 @@
 import ArgumentParser
 import Foundation
 
+fileprivate extension Project.Version {
+    
+    // v3.14.0b2
+    var string: String {
+        switch self {
+        case .custom(let version):
+            return version
+        case .git(let version, _):
+            return version
+        }
+    }
+    
+    // v3140b2
+    var plainString: String {
+        string.replacingOccurrences(of: ".", with: "")
+    }
+    
+    // 3.14
+    var minor: String {
+        var minor = minorPlain
+        minor.insert(".", at: minor.index(minor.startIndex, offsetBy: 1))
+        return minor
+    }
+    
+    // 314
+    var minorPlain: String {
+        var version = plainString
+        if version.hasPrefix("v") {
+            version.removeFirst()
+        }
+        
+        return String(version.prefix(3))
+    }
+}
+
 /// Information about the target SDK and architecture(s) we're compiling to.
+/// This type is used to construct the compilers target triple.
+///
 /// Can be added to a ``Platform`` or to another target with the `+` operator.
 public struct Target: Hashable, ExpressibleByArgument {
 
@@ -104,6 +141,46 @@ public struct Target: Hashable, ExpressibleByArgument {
             return nil
         }
     }
+    
+    /// Python platform name for native extensions, contained in the suffix of the shared objects as well as the wheels.
+    ///
+    /// This is not standard Python and does not correspond necessarily to `sys.platform`.
+    /// The standard Python implementation adds `simulator` as an abi flag for iOS (after the architecture), here is it added directly to the platform after an underscore (`_`) but `sys.platform` is always expected to be just `ios`.
+    ///
+    /// ## Possible values:
+    ///
+    /// ### iOS
+    /// - ABI: `ios` (`iphoneos`), `ios_simulator` (`iphonesimulator`), `ios_macabi` (`maccatalyst`)
+    /// - Platform: `ios`
+    ///
+    /// ### watchOS
+    /// - ABI: `watchos` (`watchos`), `watchos_simulator` (`watchsimulator`)
+    /// - Platform: `watchos`
+    ///
+    /// ### tvOS
+    /// - ABI: `tvos` (`appletvos`), `tvos_simulator` (`appletvsimulator`)
+    public var soabiPlatform: String {
+        switch systemName {
+        case .iphoneos:
+            "ios"
+        case .iphonesimulator:
+            "ios_simulator"
+        case .maccatalyst:
+            "ios_macabi"
+        case .watchos:
+            "watchos"
+        case .watchsimulator:
+            "watchos_simulator"
+        case .appletvos:
+            "tvos"
+        case .appletvsimulator:
+            "tvos_simulator"
+        }
+    }
+    
+    public func pythonSOABI(version: Project.Version) -> String {
+        "cpython-\(version.minorPlain)-\(soabiPlatform.replacingOccurrences(of: "_", with: "-"))"
+    }
 
     /// Returns `true` if targetting an Apple SDK.
     public var isApple: Bool {
@@ -128,6 +205,10 @@ public struct Target: Hashable, ExpressibleByArgument {
         self.architectures = architectures
     }
 
+    /// Initializes from a command line argument.
+    ///
+    /// - Parameters:
+    ///     - argument: Format: `<system_name>.<arch1>(-[arch2... ])`
     public init?(argument: String) {
         let comps = argument.components(separatedBy: ".")
         guard comps.count == 2, let systemName = SystemName(rawValue: comps[0]) else {

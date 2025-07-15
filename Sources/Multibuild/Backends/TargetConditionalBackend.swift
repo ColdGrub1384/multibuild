@@ -12,10 +12,7 @@ public struct TargetConditionalBuilder: Builder {
                 block(target).environment?(target) ?? [:]
             }
         }
-        
-        set {
-            
-        }
+        set {}
     }
     
     /// Initializes a platform dependant build system.

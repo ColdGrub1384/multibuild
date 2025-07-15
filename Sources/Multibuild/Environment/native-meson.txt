@@ -1,0 +1,3 @@
+[binaries]
+c = ['xcrun', '--sdk', 'macosx', 'clang']
+cpp = ['xcrun', '--sdk', 'macosx', 'clang++']

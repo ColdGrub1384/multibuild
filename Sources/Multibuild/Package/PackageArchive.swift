@@ -11,6 +11,9 @@ public struct PackageArchive {
 
         /// An Xcode Framework.
         case xcodeFramework
+        
+        /// A Python wheel.
+        case pythonWheel
     }
 
     /// URL of the archive.

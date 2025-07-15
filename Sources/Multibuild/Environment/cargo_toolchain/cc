@@ -1,0 +1,10 @@
+#!/bin/bash
+
+if [ -z "$PYTHON_LINK" ]; then
+    iosxcrun clang "$@"
+elif [[ "$@" == *"$CARGO_BUILD_TARGET"* ]]; then
+    IFS=', ' read -ra args <<< "${PYTHON_LINK//\'/}"
+    iosxcrun clang "${args[@]}" "$@"
+else
+    iosxcrun clang "$@"
+fi

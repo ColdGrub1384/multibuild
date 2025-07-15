@@ -16,6 +16,11 @@ export VERSION="$1"
 export PLAIN_VERSION="${VERSION//.}"
 export XCRUN="iosxcrun"
 
+export _PYTHON_EXECUTABLE="$(which "python$VERSION")"
+export _PKG_CONFIG_EXECUTABLE="$(which pkg-config)"
+export _RUSTC_EXECUTABLE="$(which rustc)"
+export _CARGO_EXECUTABLE="$(which cargo)"
+
 export TOOLS_DIR="$PWD"
 
 if [ -z "$IOSSDK" ] && [ -z "$MAC_CATALYST" ] && [ -z "$WATCHOSSDK" ] && [ -z "$TVOSSDK" ]; then # Other platforms
@@ -27,15 +32,13 @@ elif [ "$TVOSSDK" = "appletvos" ] || [ "$TVOSSDK" = "appletvsimulator" ]; then #
     export ARCHITECTURE="${TVOSARCH// /-}"
     export S="$TVOSSDK-$ARCHITECTURE-cpython-$PLAIN_VERSION"
     export SDK="$(xcrun --sdk $TVOSSDK --show-sdk-path)"
-    export CROSS_FILE="$TOOLS_DIR/cross-meson.txt"
 
     export PLATFORM="$TVOSSDK"
     export SDK_NAME="$TVOSSDK"
     export ARCHS="$TVOSARCH"
     export TVOS_DEPLOYMENT_TARGET=13.0
     export MINIMUM_OS_VERSION=13.0
-
-    export _PYTHON_HOST_PLATFORM=appletvos-$ARCHITECTURE
+    export ENDIAN="big"
 
     if [ "$TVOSARCH" = "arm64" ]; then
         export ARCHITECTURE_RUST="aarch64"
@@ -68,7 +71,6 @@ elif [ "$WATCHOSSDK" = "watchos" ] || [ "$WATCHOSSDK" = "watchsimulator" ]; then
 
     export S="$WATCHOSSDK-$WATCHOSARCH-cpython-$PLAIN_VERSION"
     export SDK="$(xcrun --sdk $WATCHOSSDK --show-sdk-path)"
-    export CROSS_FILE="$TOOLS_DIR/cross-meson.txt"
 
     export ARCHS="$WATCHOSARCH"
     export PLATFORM="$WATCHOSSDK"
@@ -76,18 +78,23 @@ elif [ "$WATCHOSSDK" = "watchos" ] || [ "$WATCHOSSDK" = "watchsimulator" ]; then
     export ARCHITECTURE="${WATCHOSARCH// /-}"
     export WATCHOS_DEPLOYMENT_TARGET=6.0
     export MINIMUM_OS_VERSION=6.0
-    export _PYTHON_HOST_PLATFORM=watchos-$ARCHITECTURE
 
     if [ "$WATCHOSARCH" = "arm64" ]; then
         export ARCHITECTURE_RUST="aarch64"
+        export ENDIAN="big"
     elif [ "$WATCHOSARCH" = "arm64_32" ]; then
         export ARCHITECTURE_RUST="arm64_32"
+        export ADDITIONAL_MESON_PROPERTIES="longdouble_format = 'IEEE_DOUBLE_LE'"
+        export ENDIAN="little"
     elif [ "$WATCHOSARCH" = "armv7k" ]; then
         export ARCHITECTURE_RUST="armv7k"
+        export ADDITIONAL_MESON_PROPERTIES="longdouble_format = 'IEEE_DOUBLE_LE'"
+        export ENDIAN="little"
     else
         export ARCHITECTURE_RUST="x86_64"
+        export ENDIAN="big"
     fi
-    
+
     if [ "$WATCHOSSDK" = "watchos" ]; then
         export _PLATFORM=WATCHOS64
         export TARGET_TRIPLE="$ARCHITECTURE-apple-watchos6.0"
@@ -103,7 +110,7 @@ elif [ "$WATCHOSSDK" = "watchos" ] || [ "$WATCHOSSDK" = "watchsimulator" ]; then
         export MINVERSION_FLAG="-mwatchsimulator-version-min=$WATCHOS_DEPLOYMENT_TARGET"
         export INFO_PLATFORM_NAME="WatchSimulator"
     fi
-    
+
     export XCODEBUILD_ADDITIONAL_FLAGS="-sdk '$WATCHOSSDK' -destination 'generic/platform=$XCODE_DESTINATION_PLATFORM' PATH='$OLD_PATH' ARCHS='$WATCHOSARCH' ONLY_ACTIVE_ARCH=NO"
 
     export SYSTEM="darwin"
@@ -112,7 +119,6 @@ elif [ "$IOSSDK" = "iphoneos" ] || [ "$IOSSDK" = "iphonesimulator" ]; then      
 
     export S="$IOSSDK-$IOSARCH-cpython-$PLAIN_VERSION"
     export SDK="$(xcrun --sdk $IOSSDK --show-sdk-path)"
-    export CROSS_FILE="$TOOLS_DIR/cross-meson.txt"
 
     export ARCHS="$IOSARCH"
     export PLATFORM="$IOSSDK"
@@ -120,7 +126,7 @@ elif [ "$IOSSDK" = "iphoneos" ] || [ "$IOSSDK" = "iphonesimulator" ]; then      
     export ARCHITECTURE="${IOSARCH// /-}"
     export IPHONEOS_DEPLOYMENT_TARGET=13.0
     export MINIMUM_OS_VERSION=13.0
-    export _PYTHON_HOST_PLATFORM=ios-$ARCHITECTURE
+    export ENDIAN="big"
 
     if [ "$IOSARCH" = "arm64" ]; then
         export ARCHITECTURE_RUST="aarch64"
@@ -162,8 +168,8 @@ else                                            # Mac Catalyst
     export MINVERSION_FLAG="-mios-version-min=13.1"
     export XCODEBUILD_ADDITIONAL_FLAGS="-sdk $SDK_NAME PATH='$OLD_PATH' SUPPORTS_MACCATALYST='YES' -destination 'platform=macOS,variant=Mac Catalyst' ARCHS='$MAC_CATALYST' ONLY_ACTIVE_ARCH=NO"
     export TARGET_TRIPLE="$ARCHITECTURE-apple-ios13.1-macabi"
-    export _PYTHON_HOST_PLATFORM="ios-macabi-$ARCHITECTURE"
     export _PLATFORM="MAC_CATALYST_ARM64"
+    export ENDIAN="big"
     if [ "$MAC_CATALYST" = "arm64" ]; then
         export ARCHITECTURE_RUST="aarch64"
     elif [ "$MAC_CATALYST" = "x86_64" ]; then
@@ -172,8 +178,10 @@ else                                            # Mac Catalyst
     export AUTOGEN_FLAGS="--host=$ARCHITECTURE-apple-darwin --build=$(clang -dumpmachine)"
     export INFO_PLATFORM_NAME="MacOSX"
     export SYSTEM="darwin"
-    export SUBSYSTEM=""
+    export SUBSYSTEM="macabi"
 fi
+
+# Compiler configuration
 
 ARCHFLAGS=""
 _ARCHS=""
@@ -184,241 +192,164 @@ done
 export ARCHS=$_ARCHS
 _ARCHS=
 export APPLE_TARGET_TRIPLE="$TARGET_TRIPLE"
-
+export CROSS_FILE_PYTHON="$TOOLS_DIR/cross-meson-python.txt"
+export CROSS_FILE="$TOOLS_DIR/cross-meson.txt"
+export NATIVE_FILE="$TOOLS_DIR/native-meson.txt"
 export OLD_PATH="$PATH"
 export PATH="$TOOLS_DIR/fortran-ios/bin:$TOOLS_DIR:$PATH"
-export CC="$XCRUN --sdk $SDK_NAME clang"
-export CXX="$XCRUN --sdk $SDK_NAME clang"
-export CPP="$CXX"
-export LDFLAGS="$ARCHFLAGS -isysroot $SDK"
+export CC="$XCRUN --sdk $SDK_NAME clang $ARCHFLAGS"
+export CXX="$XCRUN --sdk $SDK_NAME clang++ $ARCHFLAGS"
+export LDFLAGS="$ARCHFLAGS -isysroot $SDK -target $TARGET_TRIPLE"
 export CPPFLAGS="-target $TARGET_TRIPLE $ARCHFLAGS -isysroot $SDK -UHAVE_FEATURES_H"
-export CXXFLAGS="-target $TARGET_TRIPLE $ARCHFLAGS -isysroot $SDK -UHAVE_FEATURES_H'"
+export CXXFLAGS="-target $TARGET_TRIPLE $ARCHFLAGS -isysroot $SDK -UHAVE_FEATURES_H"
 export CFLAGS="-target $TARGET_TRIPLE $ARCHFLAGS -isysroot $SDK -UHAVE_FEATURES_H"
 export CPP="clang -E"
-
 export PIP_REQUIRE_VIRTUALENV=false
-alias PYTHON="$(which "python$VERSION")"
-alias DEPS_UTIL="$TOOLS_DIR/deps_util.py '$SITE_DIR' '$(which "python$VERSION")'"
-alias COPY_SCRIPTS="$TOOLS_DIR/copy-scripts.sh"
-alias COPY_EGGS="$TOOLS_DIR/copy-eggs.sh $VERSION"
-alias COPY_DIST="$TOOLS_DIR/copy-dist.sh $VERSION"
+export PKG_CONFIG="$(which pkg-config)"
+export CMAKE="$(which cmake)"
 
-MAKE_FRAMEWORKS() {
-    "$(which python3)" "$TOOLS_DIR/make_frameworks.py" "$VERSION" "$dir" "$1"
-    BUILD_LIBRARY="$dir" "$TOOLS_DIR/make-fat-frameworks.sh"
-}
+# Python build stuff
 
 BUILD() {
-    find . -name '*.dist-info' -delete
-    find . -name '*.egg-info' -delete
-
-    flags="$LDFLAGS"
-    export LDFLAGS="$LDFLAGS -framework Python$PLAIN_VERSION"
-
-    mkdir -p build/lib.$S
-    PYTHON -m pip install . --no-deps --upgrade -t "$BUILD_DIR" $@
-    
-    export LDFLAGS="$flags"
+    LINKER_FLAGS="${PYTHON_LINK//,/ }"
+    export CFLAGS="$CFLAGS -I'$PYTHON_HEADERS' -I'$PYTHON_HEADERS/cpython' $LINKER_FLAGS"
+    export CXXFLAGS="$CXXFLAGS -I'$PYTHON_HEADERS' -I'$PYTHON_HEADERS/cpython' $LINKER_FLAGS"
+    export LDFLAGS="$LDFLAGS $LINKER_FLAGS"
+    python -m build --wheel -n "$@"
 }
 
+export -f BUILD
+
 CARGO_SETUP() {
+
+    # Install rustup
+    export PATH="$TOOLS_DIR/cargo_toolchain:$PATH"
     source $HOME/.cargo/env
     cargo --version || curl https://sh.rustup.rs -sSf | sh
     source $HOME/.cargo/env
-    export PATH="$(pwd):$PATH"
-    rustup install nightly
-    
+    rustup install nightly &> /dev/null
+
+    # Install and configure target
     if [ "$IOSSDK" = "iphoneos" ]; then
-        rustup +nightly target add "$ARCHITECTURE_RUST-apple-ios"
         export CARGO_BUILD_TARGET="$ARCHITECTURE_RUST-apple-ios"
     elif [ "$IOSSDK" = "iphonesimulator" ]; then
-        rustup +nightly target add "$ARCHITECTURE_RUST-apple-ios-sim"
-        export CARGO_BUILD_TARGET="$ARCHITECTURE_RUST-apple-ios-sim"
+        if [ "$IOSARCH" = "x86_64" ]; then
+            export CARGO_BUILD_TARGET="x86_64-apple-ios"
+        else
+            export CARGO_BUILD_TARGET="$ARCHITECTURE_RUST-apple-ios-sim"
+        fi
     elif [ "$TVOSSDK" = "appletvos" ]; then
-        rustup +nightly target add "$ARCHITECTURE_RUST-apple-tvos"
         export CARGO_BUILD_TARGET="$ARCHITECTURE_RUST-apple-tvos"
     elif [ "$TVOSSDK" = "appletvsimulator" ]; then
-        rustup +nightly target add "$ARCHITECTURE_RUST-apple-tvos-sim"
-        export CARGO_BUILD_TARGET="$ARCHITECTURE_RUST-apple-tvos-sim"
-    elif [ "$WATCHOS" = "watchos" ]; then
-        rustup +nightly target add "$ARCHITECTURE_RUST-apple-watchos"
+        if [ "$TVOSARCH" = "x86_64" ]; then
+            export CARGO_BUILD_TARGET="x86_64-apple-tvos"
+        else
+            export CARGO_BUILD_TARGET="$ARCHITECTURE_RUST-apple-tvos-sim"
+        fi
+    elif [ "$WATCHOSSDK" = "watchos" ]; then
         export CARGO_BUILD_TARGET="$ARCHITECTURE_RUST-apple-watchos"
-    elif [ "$WATCHOS" = "watchsimulator" ]; then
-        rustup +nightly target add "$ARCHITECTURE_RUST-apple-watchos-sim"
+    elif [ "$WATCHOSSDK" = "watchsimulator" ]; then
         export CARGO_BUILD_TARGET="$ARCHITECTURE_RUST-apple-watchos-sim"
     elif [ "$MAC_CATALYST" = "arm64" ] || [ "$MAC_CATALYST" = "x86_64" ]; then
-        rustup +nightly target add "$ARCHITECTURE_RUST-apple-ios-macabi"
         export CARGO_BUILD_TARGET="$ARCHITECTURE_RUST-apple-ios-macabi"
     fi
-        
-    cargo +nightly install cargo-lipo
+    export PYO3_CROSS_LIB_DIR="$PYTHON_TARGET_PATH"
+    export PYO3_PYTHON="$TOOLS_DIR/python3"
+    export PYTHON_SYS_EXECUTABLE="$PYO3_PYTHON"
+    export RUSTUP_TOOLCHAIN=nightly
+    export CARGO_TARGET_CONFIG="$TOOLS_DIR/cargo_toolchain/$CARGO_BUILD_TARGET.json"
+    cargo +nightly install cargo-lipo &> /dev/null
+    rustup component add rust-src --toolchain nightly-aarch64-apple-darwin
 
-    # export OPENSSL_NO_PKG_CONFIG=1
-    # export OPENSSL_STATIC=1
-    # export OPENSSL_INCLUDE_DIR="$OPENSSL_HEADERS"
-    # export OPENSSL_LIB_DIR="$OPENSSL_LIB"
-    # export PYO3_CROSS_LIB_DIR="$(pwd)/../cpython/build/python$VERSION"
+    # watchOS doesn't support cdylib, so we create our own target configuration
+    rustc +nightly -Z unstable-options --print target-spec-json --target "$CARGO_BUILD_TARGET" > "$CARGO_TARGET_CONFIG"
+    python -c "import json; config_file = open('$CARGO_TARGET_CONFIG', 'r'); config = json.load(config_file); config_file.close(); config['dynamic-linking'] = True; config_file = open('$CARGO_TARGET_CONFIG', 'w'); json.dump(config, config_file); config_file.close()"
+
+    # Replace pyo3 with fork
+    find . -name "Cargo.toml" -exec cp "{}" "{}.bak" \;
+    find . -name "Cargo.toml" -exec bash -c '(cat {}.bak | insert_patched_pyo3.py) > {}' \;
+
+    # Build std
+    find . -name "Cargo.toml" -exec bash -c 'cd "$(dirname "{}")" && cargo +nightly build --target "$CARGO_TARGET_CONFIG" -Zbuild-std' \;
+
+    # failed to read directory <site-directory>/build-details.json: Not a directory (os error 20)
+    # you got to be fucking kidding me
+    mv "$PYTHON_TARGET_PATH/build-details.json" "$PYTHON_TARGET_PATH/_build-details.json"
 }
+
+export -f CARGO_SETUP
 
 RUST_BUILD() {
+    mkdir ".cargo"
+    echo '[unstable]' >> ".cargo/config.toml"
+    echo 'build-std = ["std"]' >> ".cargo/config.toml"
+
     CARGO_SETUP
-    mv "$TOOLS_DIR/cc" "$TOOLS_DIR/_cc"
-    mv "$TOOLS_DIR/c++" "$TOOLS_DIR/_c++"
-    
-    flags="$LDFLAGS"
-    export LDFLAGS="$LDFLAGS -framework Python$PLAIN_VERSION"
-    
     BUILD
+
+    mv "$PYTHON_TARGET_PATH/_build-details.json" "$PYTHON_TARGET_PATH/build-details.json"
+    find . -name "Cargo.toml" -exec bash -c 'rm {} && mv {}.bak {}' \;
     
-    export LDFLAGS="$flags"
-    
-    mv "$TOOLS_DIR/_cc" "$TOOLS_DIR/cc"
-    mv "$TOOLS_DIR/_c++" "$TOOLS_DIR/c++"
+    rm -rf ".cargo"
 }
+
+export -f RUST_BUILD
 
 MATURIN_BUILD() {
-    find . -name '*.dist-info' -delete
-    find . -name '*.egg-info' -delete
-
     CARGO_SETUP
 
-    flags="$LDFLAGS"
-    export LDFLAGS="$LDFLAGS -framework Python$PLAIN_VERSION"
-    
-    if [ -z "$MAC_CATALYST" ]; then
-        target="$ARCHITECTURE-apple-ios"
-    else
-        target="$ARCHITECTURE-apple-ios-macabi"
-    fi
-    
-    LD= CFLAGS= CPPFLAGS= CXXFLAGS= CC= CXX= CPP= PATH="$TOOLS_DIR/maturin_toolchain:$PATH" maturin build "$@" --release --target $target
-    
-    export LDFLAGS="$flags"
-    
-    pushd target/wheels
-    wheel="$PWD/*.whl"
-    popd
-    mkdir -p "build/lib.$S"
-    pushd "build/lib.$S"
-    rm -rf *
-    unzip "$wheel"
-    popd
+    # Install patched maturin
+    python -m pip install git+https://git.gatit.es/pyto/maturin.git@main
+
+    # Build
+    python -m maturin build -v --interpreter "$PYO3_PYTHON" "$@" \
+    --release --target "$CARGO_BUILD_TARGET" \
+    -Zbuild-std "$@"
+
+    # Restore files
+    mv "$PYTHON_TARGET_PATH/_build-details.json" "$PYTHON_TARGET_PATH/build-details.json"
+    find . -name "Cargo.toml" -exec bash -c 'rm {} && mv {}.bak {}' \;
 }
 
-MESON_BUILD() {
+export -f MATURIN_BUILD
 
-    find . -name '*.dist-info' -delete
-    find . -name '*.egg-info' -delete
+MESON_BUILD_PYTHON() {
 
-    #export CC=
-    #export CXX=
-    #export LD=
-    export PKG_CONFIG="$(which pkg-config)"
-    export PKG_CONFIG_PATH="$(dirname "$(which "python$VERSION")")/../lib/pkgconfig"
-
-    cp "$CROSS_FILE" "$CROSS_FILE.temp"
-    "$TOOLS_DIR/replace.py" "$CROSS_FILE.temp" '$PYTHON_HEADERS' "$PYTHON_HEADERS"
-    "$TOOLS_DIR/replace.py" "$CROSS_FILE.temp" '$PYTHON_LIB' "$PYTHON_LIB"
-    "$TOOLS_DIR/replace.py" "$CROSS_FILE.temp" '$PYTHON_FRAMEWORK' "Python$PLAIN_VERSION"
-    "$TOOLS_DIR/replace.py" "$CROSS_FILE.temp" '$SDK_NAME' "$SDK_NAME"
-    "$TOOLS_DIR/replace.py" "$CROSS_FILE.temp" '$SDK_PATH' "$SDK"
-    "$TOOLS_DIR/replace.py" "$CROSS_FILE.temp" '$ARCH' "$ARCHITECTURE"
-    "$TOOLS_DIR/replace.py" "$CROSS_FILE.temp" '$MINVERSION_FLAG' "$MINVERSION_FLAG"
-    "$TOOLS_DIR/replace.py" "$CROSS_FILE.temp" '$ROOT' "$(dirname "$(dirname "$SDK")")"
-    "$TOOLS_DIR/replace.py" "$CROSS_FILE.temp" '$CPU' "$ARCHITECTURE_RUST"
+    # Create meson configuration
+    cp "$CROSS_FILE_PYTHON" "$CROSS_FILE_PYTHON.temp"
+    "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" '$PYTHON_HEADERS' "$PYTHON_HEADERS"
+    "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" '$PYTHON_LINK' "$PYTHON_LINK"
+    "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" '$SDK_NAME' "$SDK_NAME"
+    "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" '$SDK_PATH' "$SDK"
+    "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" '$ARCH' "$ARCHITECTURE"
+    "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" '$TARGET_TRIPLE' "$TARGET_TRIPLE"
+    "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" '$MINVERSION_FLAG' "$MINVERSION_FLAG"
+    "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" '$ROOT' "$(dirname "$(dirname "$SDK")")"
+    "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" '$CPU' "$ARCHITECTURE_RUST"
+    "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" '$ENDIAN' "$ENDIAN"
+    "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" '$ADDITIONAL_MESON_PROPERTIES' "$ADDITIONAL_MESON_PROPERTIES"
+    "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" '$ADDITIONAL_COMPILER_FLAGS' "$ADDITIONAL_COMPILER_FLAGS"
     if [ -z "$SUBSYSTEM" ]; then
-        "$TOOLS_DIR/replace.py" "$CROSS_FILE.temp" "\nsubsystem = '\$SUBSYSTEM'" ""
+        "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" "\nsubsystem = '\$SUBSYSTEM'" ""
     else
-        "$TOOLS_DIR/replace.py" "$CROSS_FILE.temp" '$SUBSYSTEM' "$SUBSYSTEM"
+        "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" '$SUBSYSTEM' "$SUBSYSTEM"
     fi
-    
+
+    # Build
+    export MESON_FORCE_BACKTRACE=1
     if [ -z "$MAC_CATALYST" ]; then
-    PYTHON -m build --config-setting "setup-args=--cross-file=${CROSS_FILE}.temp" $@
+        python -m build -n \
+            -Csetup-args="--cross-file=${CROSS_FILE_PYTHON}.temp" \
+            "$@"
     else
-    PYTHON -m build $@
+        # Not cross compiling when building for Mac Catalyst
+        python -m build -n "$@"
     fi
     
-    pushd dist
-    wheel="$PWD/*.whl"
-    popd
-    mkdir -p "build/lib.$S"
-    pushd "build/lib.$S"
-    rm -rf *
-    unzip "$wheel"
-    popd
-
-    rm "$CROSS_FILE.temp"
+    rm "$CROSS_FILE_PYTHON.temp"
 }
 
-COPY_BIN() {
-    pushd "$BUILD_DIR"
-    bins="$(echo bin/*)"
-    popd
-    COPY_SCRIPTS $bins
-}
-
-INSTALL_DEPS_EGG() {
-    find . -name "*.egg_info" -print0 | grep -qz . || PYTHON setup.py egg_info
-    EGG="$(find . -name "*.egg-info" | tail -n 1)"
-    DEPS_UTIL install -r "$EGG/requires.txt"
-}
-
-INSTALL_DEPS_DIST() {
-    DIST="$(find . -name "*.dist-info" | tail -n 1)"
-    DEPS_UTIL install -r "$DIST/METADATA"
-}
-
-INSTALL_DEPS() {
-    find . -name "*.egg_info" -print0 | grep -qz . && INSTALL_DEPS_EGG && return
-    find . -name "*.dist-info" -print0 | grep -qz . && INSTALL_DEPS_DIST && return
-}
-
-# Register installed top directories, back them up progressively before each pip install here or from $SITE_DIR/install.sh
-REGISTER() {
-    find . -name "*.egg_info" -print0 | grep -qz . && REGISTER_EGG && return
-    find . -name "*.dist-info" -print0 | grep -qz . && REGISTER_DIST && return
-}
-
-REGISTER_EGG() {
-    EGG="$(find . -name "*.egg-info" | tail -n 1)"
-    TOP_LEVEL="$(cat "$EGG"/top_level.txt)"
-    mkdir -p ../toplevel
-    
-    for i in $TOP_LEVEL; do
-        file="$SITE_DIR/$i"
-        [ ! -e $file ] && file="$file.py"
-        rm -rf "../toplevel/$(basename $file)"
-        [ -e $file ] && cp -r $file ../toplevel
-    done
-        
-    for pkg in ../toplevel/*; do
-        name="$(basename "$pkg")"
-        [ ! -e "../toplevel/$name" ] && name="$name.py"
-        rm -rf "$SITE_DIR/$name"
-        cp -r "../toplevel/$name" "$SITE_DIR/$name"
-    done
-}
-
-REGISTER_DIST() {
-    TOP_LEVEL="$(ls $BUILD_DIR)"
-    mkdir -p ../toplevel
-    
-    for i in $TOP_LEVEL; do
-        file="$SITE_DIR/$i"
-        [ ! -e $file ] && file="$file.py"
-        rm -rf "../toplevel/$(basename $file)"
-        [ -e $file ] && cp -r $file ../toplevel
-    done
-        
-    for pkg in ../toplevel/*; do
-        name="$(basename "$pkg")"
-        [ ! -e "../toplevel/$name" ] && name="$name.py"
-        rm -rf "$SITE_DIR/$name"
-        cp -r "../toplevel/$name" "$SITE_DIR/$name"
-    done
-}
-
-trap REGISTER EXIT
+export -f MESON_BUILD_PYTHON
 
 if [ -z "$BUILD_SCRIPT" ]; then
     echo > /dev/null

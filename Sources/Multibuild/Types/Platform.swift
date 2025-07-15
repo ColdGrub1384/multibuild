@@ -38,4 +38,6 @@ public struct Platform {
     static func +(lhs: Platform, rhs: Platform) -> Platform {
         Platform(supportedTargets: Array(Set(lhs.supportedTargets+rhs.supportedTargets)))
     }
+    
+    internal static let all = apple
 }

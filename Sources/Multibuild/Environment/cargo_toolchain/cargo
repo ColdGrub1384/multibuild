@@ -1,0 +1,21 @@
+#!/usr/bin/env build_python
+
+import sys
+import os
+import subprocess
+
+args = sys.argv
+del args[0]
+
+new_args = [os.environ["_CARGO_EXECUTABLE"]]
+for arg in sys.argv:
+    try:
+        if arg == os.environ["CARGO_BUILD_TARGET"] and not "target-spec-json" in sys.argv:
+            arg = os.path.join(os.path.abspath(os.path.dirname(__file__)), os.environ["CARGO_BUILD_TARGET"]+".json")
+    except KeyError:
+        pass
+    new_args.append(arg)
+
+p = subprocess.Popen(new_args)
+p.wait()
+sys.exit(p.returncode)

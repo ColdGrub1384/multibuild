@@ -88,11 +88,12 @@ public struct Framework {
         otool.arguments = ["-l", binaryURL.path]
         otool.standardOutput = output
         otool.launch()
+        let data = output.fileHandleForReading.readDataToEndOfFile()
         otool.waitUntilExit()
 
         if otool.terminationStatus != 0 {
             return nil
-        } else if let string = String(data: output.fileHandleForReading.availableData, encoding: .utf8) {
+        } else if let string = String(data: data, encoding: .utf8) {
             for line in string.components(separatedBy: "\n") {
                 if line.hasPrefix(" platform ") {
                     let platform = line.components(separatedBy: " platform ").last ?? ""
@@ -185,6 +186,8 @@ public struct Framework {
                                     .replacingOccurrences(of: ".", with: "")
 
         let binaryName = Self.frameworkify(binaryURL)
+
+        print("Creating \(binaryName).framework for \(sdkName?.rawValue ?? "unknown platform")...")
 
         var content = try String(contentsOf: infoPlist)
         content = content.replacingOccurrences(of: "%BUNDLE_ID%", with: "\(bundleIdentifierPrefix).\(plainName)")

@@ -65,6 +65,7 @@ public struct CMake: Builder {
 
     public func buildScript(for target: Target, forceConfigure: Bool) -> String {
         
+        var additionalPrefixPath = ""
         var options = [
             "ARCHS": target.architectures.map({ $0.rawValue }).joined(separator: ";"),
             "CMAKE_MACOSX_BUNDLE": "OFF",
@@ -82,6 +83,10 @@ public struct CMake: Builder {
                 }
                 value = "-target \(target.triple!) -isysroot \(target.sdkURL!.path) \(value) \(archs)"
             }
+            if option.key == "CMAKE_PREFIX_PATH" {
+                additionalPrefixPath = option.value
+                continue
+            }
             options[option.key] = value
         }
 
@@ -96,6 +101,19 @@ public struct CMake: Builder {
         export CXXFLAGS=
         export LDFLAGS=
 
+        if [ -z "\(additionalPrefixPath.replacingOccurrences(of: "\"", with: "\\\""))" ]; then
+            true
+        else
+            export CMAKE_PREFIX_PATH="\(additionalPrefixPath.replacingOccurrences(of: "\"", with: "\\\""))"
+        fi
+
+        ADDITIONAL_PREFIX_PATH="${PKG_CONFIG_LIBDIR//:/;}"
+        if [ -z "$CMAKE_PREFIX_PATH" ]; then
+            export CMAKE_PREFIX_PATH="$ADDITIONAL_PREFIX_PATH"
+        else
+            export CMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH;$ADDITIONAL_PREFIX_PATH"
+        fi
+
         mkdir -p "\(buildDir)"
         if [ -f "\(buildDir)/CMakeCache.txt" ] && [ "\(forceConfigure)" = "false" ]; then
             cd "\(buildDir)" &&
@@ -103,7 +121,7 @@ public struct CMake: Builder {
         else
             cmake -G "\(generator.name)" -B "\(buildDir)" \(options.map({
                 "-D\($0.key)=\"\($0.value.replacingOccurrences(of: "\"", with: "\\\""))\""
-            }).joined(separator: " ")) &&
+            }).joined(separator: " ")) -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" &&
             cd "\(buildDir)" &&
             \(buildInvocation)
         fi

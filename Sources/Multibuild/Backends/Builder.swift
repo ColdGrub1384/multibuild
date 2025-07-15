@@ -48,7 +48,7 @@ internal extension Builder {
 }
 
 internal func targetEnvironment(for target: Target) -> [String:String] {
-    var flags = [String:String]()
+    var flags: [String:String]
     switch target.systemName {
         case .iphoneos, .iphonesimulator:
             flags = [
@@ -70,5 +70,6 @@ internal func targetEnvironment(for target: Target) -> [String:String] {
                 "MAC_CATALYST": target.architectures.map({ $0.rawValue }).joined(separator: " ")
             ]
     }
+    flags["_PYTHON_HOST_PLATFORM"] = "\(target.soabiPlatform.replacingOccurrences(of: "_", with: "-"))-\(target.architectures.map({ $0.rawValue }).joined(separator: "-"))"
     return flags
 }

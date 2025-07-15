@@ -8,6 +8,9 @@ public struct Build {
 
         /// Program that failed.
         public var programName: String
+        
+        /// Arguments of the program that failed.
+        public var arguments: [String]
 
         /// Exit code of the process.
         public var exitCode: Int
@@ -28,7 +31,8 @@ public struct Build {
 
     private var products: [Product]
 
-    private var versionString: String? {
+    /// Parsed numerical version string.
+    public var versionString: String? {
         let projectName = buildRootDirectory.deletingLastPathComponent().lastPathComponent
         return ProjectNames[projectName]?.versionString
     }
@@ -48,6 +52,69 @@ public struct Build {
     /// - Returns: URL of the build directory.
     public func buildDirectoryURL(for target: Target) -> URL? {
         buildDirs[target]
+    }
+
+    private func pkgConfigFlags(_ flagsName: String, for target: Target) -> [String]? {
+        let projectName = buildRootDirectory.deletingLastPathComponent().lastPathComponent
+        guard let buildDir = buildDirectoryURL(for: target) else {
+            return nil
+        }
+
+        let configName = ProjectNames[projectName]?.pkgConfigNames?.first ?? projectName
+        let configFile = buildDir.appendingPathComponent("\(configName).pc")
+        
+        var prefixPath = buildDir.path
+        for line in (try? String(contentsOf: configFile, encoding: .utf8))?.components(separatedBy: "\n") ?? [] {
+            if line.hasPrefix("prefix=") {
+                prefixPath = line.components(separatedBy: "prefix=")[1]
+            }
+
+            if line.hasPrefix("\(flagsName): ") {
+                return line.components(separatedBy: "\(flagsName): ")[1].components(separatedBy: " ").map({
+                    $0.replacingOccurrences(of: "${prefix}", with: prefixPath)
+                })
+            }
+        }
+
+        return nil
+    }
+
+    /// Compiler flags from the generated pkg-config file.
+    public func compilerFlags(for target: Target) -> [String]? {
+        pkgConfigFlags("Cflags", for: target)
+    }
+
+    /// Linker flags from the generated pkg-config file.
+    public func linkerFlags(for target: Target) -> [String]? {
+        pkgConfigFlags("Libs", for: target)
+    }
+
+    /// In case of the project being a Python package, the URL of a generated wheel for a target.
+    ///
+    /// - Parameters:
+    ///     - target: Target platform.
+    ///     - python: Python version.
+    ///
+    /// - Returns: The URL of the Python wheel.
+    public func wheelURL(for target: Target, python: Python.BuildInterpreter) -> URL? {
+        guard let buildDir = buildDirectoryURL(for: target) else {
+            return nil
+        }
+        
+        var wheelURL: URL?
+        for file in (try? FileManager.default.contentsOfDirectory(at: buildDir, includingPropertiesForKeys: nil)) ?? [] {
+            let cpSuffix = "cp\(python.rawValue.replacingOccurrences(of: ".", with: ""))"
+            if
+                file.pathExtension == "whl" &&
+                file.lastPathComponent.contains("\(cpSuffix)-\(cpSuffix)") &&
+                    file.lastPathComponent.contains(target.soabiPlatform+"_"+target.architectures[0].rawValue+".whl") &&
+                file.lastPathComponent.contains(target.architectures[0].rawValue) {
+                wheelURL = file
+                break
+            }
+        }
+
+        return wheelURL
     }
 
     private func target(from buildURL: URL) -> Target? {
@@ -153,7 +220,7 @@ public struct Build {
                 lipo.waitUntilExit()
 
                 if lipo.terminationStatus != 0 {
-                    throw MergeError(programName: "lipo", exitCode: Int(lipo.terminationStatus))
+                    throw MergeError(programName: "lipo", arguments: lipo.arguments ?? [], exitCode: Int(lipo.terminationStatus))
                 }
 
                 if output.deletingLastPathComponent().pathExtension == "framework" {
@@ -247,7 +314,7 @@ public struct Build {
         archiveSource.waitUntilExit()
 
         if archiveSource.terminationStatus != 0 {
-            throw MergeError(programName: "swift", exitCode: Int(archiveSource.terminationStatus))
+            throw MergeError(programName: "swift", arguments: archiveSource.arguments ?? [], exitCode: Int(archiveSource.terminationStatus))
         }
 
         let archiveURL = appleUniversalBuildDirectoryURL.appendingPathComponent("\(packageName).zip")
@@ -291,7 +358,7 @@ public struct Build {
         
         var staticArchiveFrameworks = [String:[URL]]()
         var staticArchivesLinkerFlags = [String:[((Target) -> [String])?]]()
-        var staticArchivesToMergeIntoOneDylib = [String:[Product]]()
+        var staticArchivesToMergeIntoOneDylib = [(String, [Product])]()
         var staticArchives = [Product]()
         
         for product in products {
@@ -303,10 +370,11 @@ public struct Build {
                         let defaultBinaryName = buildRootDirectory.deletingLastPathComponent().lastPathComponent
                         let binaryName = product.binaryName ?? defaultBinaryName
 
-                        if staticArchivesToMergeIntoOneDylib[binaryName] != nil {
-                            staticArchivesToMergeIntoOneDylib[binaryName]?.append(product)
+                        if let i = staticArchivesToMergeIntoOneDylib.firstIndex(where: { $0.0 == binaryName }) {
+                            var staticArchive = staticArchivesToMergeIntoOneDylib[i]
+                            staticArchive.1.append(product)
                         } else {
-                            staticArchivesToMergeIntoOneDylib[binaryName] = [product]
+                            staticArchivesToMergeIntoOneDylib.append((binaryName, [product]))
                         }
 
                         if staticArchivesLinkerFlags[binaryName] != nil {
@@ -319,6 +387,8 @@ public struct Build {
                     }
                 case .framework:
                     frameworks.append(product)
+                default:
+                    break
             }
         }
         
@@ -336,9 +406,77 @@ public struct Build {
                 }
                 
                 let dylibURL = directory.appendingPathComponent(libPath).resolvingSymlinksInPath()
+                
+                guard FileManager.default.fileExists(atPath: dylibURL.path) else {
+                    print("Skipping \(dylibURL.lastPathComponent) as it does not exist for \(target)", to: &StandardError)
+                    continue
+                }
+                
                 let includeURL = dylib.includePath == nil ? nil : directory.appendingPathComponent(dylib.includePath!)
+                let headersURLs = dylib.headers == nil ? nil : dylib.headers!.map({ directory.appendingPathComponent($0) })
 
-                let framework = Framework(binaryURL: dylibURL, version: versionString ?? "1.0", installName: dylib.installName, includeURLs: includeURL == nil ? [] : [includeURL!], resourcesURLs: dylib.resources.map({ directory.appendingPathComponent($0) }), bundleIdentifierPrefix: bundleIdentifierPrefix)
+                // replace lc_load_dylib
+                do {
+                    let output = Pipe()
+                    let otool = Process()
+                    otool.executableURL = URL(fileURLWithPath: "/usr/bin/otool")
+                    otool.arguments = ["-l", dylibURL.path]
+                    otool.standardOutput = output
+                    otool.launch()
+
+                    let data = output.fileHandleForReading.readDataToEndOfFile()
+                    otool.waitUntilExit()
+
+                    var replaceDylibs = [(String, String)]()
+
+                    if otool.terminationStatus != 0 {
+                        continue
+                    } else if let string = String(data: data, encoding: .utf8) {
+                        for line in string.components(separatedBy: "\n") {
+                            if line.contains("name @rpath/") && line.contains(".dylib") {
+                                for dylibPath in line.components(separatedBy: " ") {
+                                    if dylibPath.hasPrefix("@rpath") && dylibPath.hasSuffix(".dylib") {
+                                        let dylibName = dylibPath.components(separatedBy: "/").last ?? dylibPath
+                                        for product in products {
+                                            if case .dynamicLibrary = product.kind, let libName = product.libraryPaths.first?.components(separatedBy: "/").last {
+                                                
+                                                guard libName == dylibName else {
+                                                    continue
+                                                }
+                                                
+                                                let frameworkName = Framework.frameworkify(buildRootDirectory.appendingPathComponent(libName))
+                                                let frameworkPath = "@rpath/\(frameworkName).framework/\(frameworkName)"
+                                                replaceDylibs.append((dylibPath, frameworkPath))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    for lib in replaceDylibs {
+                        let installNameTool = Process()
+                        installNameTool.executableURL = URL(fileURLWithPath: "/usr/bin/install_name_tool")
+                        installNameTool.arguments = [
+                            dylibURL.path,
+                            "-change", lib.0, lib.1
+                        ]
+                        installNameTool.launch()
+                        installNameTool.waitUntilExit()
+                        if installNameTool.terminationStatus != 0 {
+                            throw MergeError(programName: "install_name_tool", arguments: installNameTool.arguments ?? [], exitCode: Int(installNameTool.terminationStatus))
+                        }
+                    }
+                }
+
+                let framework = Framework(binaryURL: dylibURL,
+                                          version: versionString ?? "1.0",
+                                          installName: dylib.installName,
+                                          includeURLs: includeURL == nil ? [] : [includeURL!],
+                                          headersURLs: headersURLs ?? [],
+                                          resourcesURLs: dylib.resources.map({ directory.appendingPathComponent($0) }),
+                                          bundleIdentifierPrefix: bundleIdentifierPrefix)
                 dylibFrameworks[target]?.append(try framework.write(to: directory))
             }
         }
@@ -365,7 +503,26 @@ public struct Build {
                             break
                         }
                     }
+
+                    // find dependencies and link to them
+                    var dependenciesFlags = [String]()
+                    let projectName = buildRootDirectory.deletingLastPathComponent().lastPathComponent
+                    for dep in ProjectNames[projectName]?.dependencies ?? [] {
+                        let project: Project
+                        if let name = dep.name, let depProject = ProjectNames[name] {
+                            project = depProject
+                        } else if let depProject = dep.project {
+                            project = depProject
+                        } else {
+                            continue
+                        }
+                        
+                        if let linkerFlags = project.build?.linkerFlags(for: target) {
+                            dependenciesFlags.append(contentsOf: linkerFlags)
+                        }
+                    }
                     
+                    // link
                     let process = Process()
                     process.currentDirectoryURL = buildDirectoryURL(for: target)?.resolvingSymlinksInPath()
                     process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
@@ -379,10 +536,15 @@ public struct Build {
                         "-lc++",
                         "-F.",
                         "-L."
-                    ]+additionalLinkerFlags+(target.systemName == .maccatalyst ? [
+                    ]
+                    + (target.systemName == .maccatalyst ? [
                         "-target",
-                        "\(target.architectures.map({ $0.rawValue }).joined(separator: "-"))-apple-ios13.1-macabi"
-                    ] : ["-target", target.triple ?? "unknown-target"])
+                        "\(target.architectures.map({ $0.rawValue }).joined(separator: "-"))-apple-ios13.1-macabi",
+                        "-isystem", "\(target.sdkURL?.path ?? "")/System/iOSSupport/usr/include",
+                        "-iframework", "\(target.sdkURL?.path ?? "")/System/iOSSupport/System/Library/Frameworks"
+                    ] : ["-target", target.triple ?? "unknown-target"]) +
+                    dependenciesFlags+additionalLinkerFlags
+
                     for arch in target.architectures {
                         process.arguments!.append(contentsOf: ["-arch", arch.rawValue])
                     }
@@ -430,7 +592,7 @@ public struct Build {
                     process.waitUntilExit()
 
                     if process.terminationStatus != 0 {
-                        throw MergeError(programName: "clang", exitCode: Int(process.terminationStatus))
+                        throw MergeError(programName: "clang", arguments: process.arguments ?? [], exitCode: Int(process.terminationStatus))
                     }
 
                     try FileManager.default.removeItem(at: libraryMainURL)
@@ -468,8 +630,8 @@ public struct Build {
             for (_, frameworks) in allFrameworks {
                 
                 var dylibFrameworks = frameworks
-                
                 try merge(urls: &dylibFrameworks)
+                
                 let xcodebuild = Process()
                 xcodebuild.executableURL = URL(fileURLWithPath: "/usr/bin/xcodebuild")
                 xcodebuild.arguments = [
@@ -490,7 +652,7 @@ public struct Build {
                 xcodebuild.waitUntilExit()
 
                 if xcodebuild.terminationStatus != 0 {
-                    throw MergeError(programName: "xcodebuild", exitCode: Int(xcodebuild.terminationStatus))
+                    throw MergeError(programName: "xcodebuild", arguments: xcodebuild.arguments ?? [], exitCode: Int(xcodebuild.terminationStatus))
                 }
             }
         }
@@ -518,7 +680,7 @@ public struct Build {
             xcodebuild.waitUntilExit()
 
             if xcodebuild.terminationStatus != 0 {
-                throw MergeError(programName: "xcodebuild", exitCode: Int(xcodebuild.terminationStatus))
+                throw MergeError(programName: "xcodebuild", arguments: xcodebuild.arguments ?? [], exitCode: Int(xcodebuild.terminationStatus))
             }
         }
         
@@ -553,7 +715,7 @@ public struct Build {
             xcodebuild.waitUntilExit()
 
             if xcodebuild.terminationStatus != 0 {
-                throw MergeError(programName: "xcodebuild", exitCode: Int(xcodebuild.terminationStatus))
+                throw MergeError(programName: "xcodebuild", arguments: xcodebuild.arguments ?? [], exitCode: Int(xcodebuild.terminationStatus))
             }
         }
 
@@ -576,12 +738,13 @@ public struct Build {
                 ])
                 if let includePath = staticArchive.includePath {
                     librariesArgs.append(contentsOf: [
-                        "-headers", includePath
+                        "-headers", buildDirs.first?.value.appendingPathComponent(includePath).path ?? ""
                     ])
                 }
             }
 
-            let xcframework = universalBuildDir.appendingPathComponent(libPath.components(separatedBy: "/").last ?? "").deletingPathExtension().appendingPathExtension("xcframework")
+            let libName = libPath.components(separatedBy: "/").last ?? ""
+            let xcframework = universalBuildDir.appendingPathComponent(Framework.frameworkify(universalBuildDir.appendingPathComponent(libName))).deletingPathExtension().appendingPathExtension("xcframework")
             if FileManager.default.fileExists(atPath: xcframework.path) {
                 try FileManager.default.removeItem(at: xcframework)
             }
@@ -593,7 +756,7 @@ public struct Build {
             xcodebuild.waitUntilExit()
 
             if xcodebuild.terminationStatus != 0 {
-                throw MergeError(programName: "xcodebuild", exitCode: Int(xcodebuild.terminationStatus))
+                throw MergeError(programName: "xcodebuild", arguments: xcodebuild.arguments ?? [], exitCode: Int(xcodebuild.terminationStatus))
             }
         }
 

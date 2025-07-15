@@ -1,4 +1,3 @@
-import MachO
 import Foundation
 
 /// Running pre generated Makefiles in the root of the project directory.
@@ -56,7 +55,7 @@ public struct Make: Builder {
         cd "\(outputDirectoryPath(for: target))"
         export CC="iosxcrun --sdk $SDK_NAME clang"
         export CXX="iosxcrun --sdk $SDK_NAME clang"
-        export CPP="$TOOLS_DIR/cpp"
+        export CPP="iosxcrun --sdk $SDK_NAME clang -E"
         export CFLAGS="-isysroot $SDK -target $TARGET_TRIPLE \(flags)"
         export CXXFLAGS="-isysroot $SDK -target $TARGET_TRIPLE \(flags)" 
         export LDFLAGS="-isysroot $SDK -target $TARGET_TRIPLE \(flags)"

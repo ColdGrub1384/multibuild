@@ -24,14 +24,23 @@ for arg in sys.argv:
     if arg == "-static":
         continue
 
-    if arg.startswith("-std=c++"):
-        continue
-
     if arg.startswith("--host="):
         continue
 
     if arg == "--target=ios-cross":
         continue
+
+    # prioritize -target over -arch
+    if new_args[-1] == "-arch" and "-target" in sys.argv:
+        new_args.pop(-1)
+        continue
+    
+    if new_args[-1] == "--sdk" and arg == "darwin":
+        arg = "macosx"
+
+    if arg == "-E" and len(new_args) == 1:
+        # Invoked as preprocessor without a specified compiler
+        new_args.append("clang")
 
     if arg == "-E" and new_args[-1] == "clang":
         is_preprocessor = True
@@ -41,7 +50,42 @@ for arg in sys.argv:
     
     if arg == "-nologo":
         continue
-    
+
+    # I don't know why but something is forcing to link to a "Python" framework even if we already specified another Python framework name
+    if arg == "Python" and new_args[-1] == "-framework":
+        if "PYTHON_LINK" in os.environ and not arg in os.environ["PYTHON_LINK"].split(" "):
+            new_args.pop(-1)
+            continue
+
+    # astropy fails with unused linker flags
+    if arg == "-Wall" and new_args[-1] == "-Werror":
+        new_args.pop(-1)
+        continue
+
+    # gensim passes xcrun flags to the compiler?
+    if new_args[-1] == "--sdk" and ("clang" in new_args or "clang++" in new_args):
+        new_args.pop(-1)
+        continue
+    elif (arg == "clang" or arg == "clang++") and ("clang" in new_args or "clang++" in new_args):
+        continue
+
+    if arg == "-lclang_rt.osx" and "SDK_NAME" in os.environ:
+        match os.environ["SDK_NAME"]:
+            case "iphoneos":
+                 arg = "-lclang_rt.ios"
+            case "iphonesimulator":
+                arg = "-lclang_rt.iossim"
+            case "watchos":
+                arg = "-lclang_rt.watchos"
+            case "watchsimulator":
+                arg = "-lclang_rt.watchossim"
+            case "appletvos":
+                arg = "-lclang_rt.tvos"
+            case "appletvsimulator":
+                arg = "-lclang_rt.tvossim"
+            case _:
+                arg = "-lclang_rt.osx"
+
     if arg.endswith(".S") and new_args[-1] == "-c":
         assembly = True
 
@@ -56,19 +100,8 @@ for arg in sys.argv:
             arg = "-fPIC"
     new_args.append(arg)
 
-if is_just_c_not_cpp:
-    if "scipy/ndimage/src/ni_morphology.c" in " ".join(new_args):
-        new_args.append("-std=c11")
-else:
-    new_args.append("-std=c++17")
-
-if "-lopenblas" in new_args:
-    new_args.append("-L"+os.path.abspath(os.path.dirname(__file__)))
-    new_args.append("-llapack")
-
 if len(new_args) > 1 and new_args[1].startswith("-") and assembly:
     new_args.insert(1, "clang")
-
 
 p = subprocess.Popen(new_args)
 p.wait()

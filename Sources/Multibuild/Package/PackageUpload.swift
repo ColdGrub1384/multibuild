@@ -9,6 +9,9 @@ public struct PackageUpload {
 
         /// Swift Package Registry.
         case swift
+        
+        /// A PyPI repository.
+        case pypi
 
         /// A generic package registry for any type of file.
         case generic
@@ -89,6 +92,27 @@ public struct PackageUpload {
                     "-F", "source-archive=@\(archive.url.lastPathComponent)",
                     "-F", "metadata={\"author\":{\"@type\":\"Person\", \"name\": \"\(user.fullName)\"}}",
                     registryURL.appendingPathComponent("\(archive.url.deletingPathExtension().lastPathComponent)/\(archive.version ?? "0.0.0")").absoluteString
+                ]
+            case .pypi:
+                let shasumPipe = Pipe()
+                let computeShasum = Process()
+                computeShasum.standardOutput = shasumPipe
+                computeShasum.executableURL = URL(fileURLWithPath: "/sbin/sha256sum")
+                computeShasum.arguments = [archive.url.path]
+                computeShasum.launch()
+                let data = shasumPipe.fileHandleForReading.readDataToEndOfFile()
+                computeShasum.waitUntilExit()
+                guard let shasum = String(data: data, encoding: .utf8)?.replacingOccurrences(of: "\n", with: "").components(separatedBy: " ").first, !shasum.isEmpty else {
+                    break
+                }
+                curl.arguments = [
+                    "--user", "\(user.name):\(user.token)",
+                    "-H", "Content-Type: multipart/form-data",
+                    "-F", "sha256_digest=\(shasum)",
+                    "-F", "name=\(archive.name)",
+                    "-F", "version=\(archive.version ?? archive.url.lastPathComponent.components(separatedBy: "-")[1])",
+                    "-F", "content=@\(archive.url.lastPathComponent)",
+                    registryURL.absoluteString
                 ]
             case .generic:
                 curl.arguments = [

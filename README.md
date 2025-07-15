@@ -3,11 +3,17 @@
 A Swift build system for projects compiling to multiple architectures and sdks.
 This library provides types that define projects, configurations and also a command line interface to trigger builds.
 
-After compiling `multibuild` generates Xcode frameworks and Swift Packages to be used on Apple platforms (non Apple platforms don't support `binaryTarget` and `xcframework`s, so we'll have to use an alternate package manager).
+After compiling `multibuild` generates Python Wheels, Xcode frameworks and Swift Packages to be used on Apple platforms (non Apple platforms don't support `binaryTarget` and `xcframework`s, so we'll have to use an alternate package manager).
 
 (only supports Apple platforms for the moment and not all because that's what I'm testing against currently but I plan to add support for at least Linux / Android)
 
-See the [documentation](https://gatites.no.binarios.cl/emma/cosas/documentaciones/multibuild) for API usage information.
+See the [documentation](https://git.gatit.es/emma/cosas/documentaciones/multibuild) for API usage information.
+
+## Why did I do that?
+
+I didn't know there was already a [`multibuild`](https://github.com/multi-build/multibuild) when I started this and it is also related to Python. So I may end up renaming it some time.
+
+This is part of my effort to automatize dependency management for my app [Pyto](https://pyto.app) (a Python IDE) while making it multi platform. Precompiled binaries can be found in [this package registry](https://git.gatit.es/pyto/pyto-runtime/packages). I have been spending more than half a year in this task while not working almost anything in the app itself but I added `Mac Catalyst` support and will be supporting other platforms. The idea is to have the same coding environment accross platforms so I'm starting with all Apple platforms. `visionOS` and `macOS` (native) are not yet supported because I'll start by having the app on `Mac Catalyst`, `watchOS` and `tvOS`.
 
 ## Installation
 
@@ -17,7 +23,7 @@ To use this library, create an executable Swift Package target and add `multibui
 let package = Package(
     name: "build-libraries",
     dependencies: [
-        .package(url: "pi@gatites.no.binarios.cl:emma/multibuild.git", from: "1.0.2")
+        .package(url: "pi@git.gatit.es:emma/multibuild.git", from: "2.0.0")
     ],
     targets: [
         .executableTarget(

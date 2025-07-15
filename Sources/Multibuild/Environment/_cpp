@@ -1,0 +1,3 @@
+#!/bin/bash
+
+iosxcrun --sdk $SDK_NAME clang -E "$@"

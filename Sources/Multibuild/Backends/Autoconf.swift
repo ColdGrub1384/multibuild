@@ -70,16 +70,17 @@ public struct Autoconf: Builder {
 
         var makeCall = makeTargets == nil ? "make" : ""
         for target in makeTargets ?? [] {
-            makeCall += "make \(target)\n"
+            makeCall += "make \(target) LDFLAGS=\"$LDFLAGS\"\n"
         }
 
         return """
         PROJECT_DIR="$PWD"
         mkdir -p "\(outputDirectoryPath(for: target))"
         cd "\(outputDirectoryPath(for: target))"
-        export CC="iosxcrun --sdk $SDK_NAME clang" 
-        export CXX="iosxcrun --sdk $SDK_NAME clang"
-        export CPP="$TOOLS_DIR/cpp"
+        export CC="iosxcrun --sdk $SDK_NAME clang -target $TARGET_TRIPLE" 
+        export CXX="iosxcrun --sdk $SDK_NAME clang -target $TARGET_TRIPLE"
+        export LD="$(which ld) -target $TARGET_TRIPLE"
+        export CPP="iosxcrun --sdk $SDK_NAME clang -E"
         export CFLAGS="-isysroot $SDK -target $TARGET_TRIPLE \(flags)"
         export CXXFLAGS="-isysroot $SDK -target $TARGET_TRIPLE \(flags)" 
         export LDFLAGS="-isysroot $SDK -target $TARGET_TRIPLE \(flags)"
@@ -99,7 +100,13 @@ public struct Autoconf: Builder {
         if [ -f "Makefile" ] && [ "\(forceConfigure)" = "false" ]; then
              \(makeCall)
         else
-            $configure_path \(arguments) --prefix="$PWD/../../build/$PLATFORM.$ARCHITECTURE" &&
+            $configure_path \(arguments) --prefix="$PWD/../../build/$PLATFORM.$ARCHITECTURE" CC="$CC" \
+            CXX="$CXX" \
+            CPP="$CPP" \
+            LD="$LD" \
+            CFLAGS="$CFLAGS" \
+            CXXFLAGS="$CXXFLAGS" \
+            LDFLAGS="$LDFLAGS" &&
             "$TOOLS_DIR/replace.py" "Makefile" "-static" "" &&
             \(target.systemName == .watchos ? "\"$TOOLS_DIR/replace.py\" \"Makefile\" \"-arch armv7 \" \"\" &&" : "")
             \(makeCall)
