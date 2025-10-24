@@ -7,7 +7,7 @@ After compiling `multibuild` generates Python Wheels, Xcode frameworks and Swift
 
 (only supports Apple platforms for the moment and not all because that's what I'm testing against currently but I plan to add support for at least Linux / Android)
 
-See the [documentation](https://git.gatit.es/emma/cosas/documentaciones/multibuild) for API usage information.
+See the [documentation](https://gatit.es/emma/cosas/documentaciones/multibuild) for API usage information.
 
 ## Why did I do that?
 
