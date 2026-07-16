@@ -23,7 +23,7 @@ To use this library, create an executable Swift Package target and add `multibui
 let package = Package(
     name: "build-libraries",
     dependencies: [
-        .package(url: "pi@git.gatit.es:emma/multibuild.git", from: "2.0.0")
+        .package(url: "https://git.gatit.es/emma/multibuild.git", from: "3.0.0")
     ],
     targets: [
         .executableTarget(
