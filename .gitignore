@@ -67,7 +67,3 @@ fastlane/test_output
 # Documentation
 
 docs/*
-
-# fortran-ios
-
-Sources/multibuild/Environment/fortran-ios/*
