@@ -181,6 +181,12 @@ else                                            # Mac Catalyst
     export SUBSYSTEM="macabi"
 fi
 
+if [ -z "$NPY_INCLUDE_DIR" ]; then
+    true
+else
+    export ADDITIONAL_MESON_PROPERTIES="$ADDITIONAL_MESON_PROPERTIES\nnumpy-include-dir = '$NPY_INCLUDE_DIR'"
+fi
+
 # Compiler configuration
 
 ARCHFLAGS=""
