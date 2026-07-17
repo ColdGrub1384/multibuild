@@ -60,7 +60,11 @@ elif [ "$TVOSSDK" = "appletvos" ] || [ "$TVOSSDK" = "appletvsimulator" ]; then #
         export MINVERSION_FLAG="-mtvos-version-min=$TVOS_DEPLOYMENT_TARGET"
         export INFO_PLATFORM_NAME="AppleTVOS"
     elif [ "$TVOSSDK" = "appletvsimulator" ]; then
-        export _PLATFORM=SIMULATOR_TVOS
+        if [ "$TVOSARCH" = "x86_64" ]; then
+            export _PLATFORM=SIMULATOR_TVOS
+        elif [ "$TVOSARCH" = "arm64" ]; then
+            export _PLATFORM=SIMULATORARM64_TVOS
+        fi
         export TARGET_TRIPLE="$ARCHITECTURE-apple-tvos13.0-simulator"
         export XCODE_DESTINATION_PLATFORM="tvOS Simulator"
         export AUTOGEN_FLAGS="--host=$ARCHITECTURE-apple-tvos13.0-simulator --build=$(clang -dumpmachine)"
@@ -88,28 +92,34 @@ elif [ "$WATCHOSSDK" = "watchos" ] || [ "$WATCHOSSDK" = "watchsimulator" ]; then
     if [ "$WATCHOSARCH" = "arm64" ]; then
         export ARCHITECTURE_RUST="aarch64"
         export ENDIAN="big"
+        if [ "$WATCHOSSDK" = "watchos" ]; then
+            export _PLATFORM=WATCHOS64
+        elif [ "$WATCHOSSDK" = "watchsimulator" ]; then
+            export _PLATFORM=SIMULATORARM64_WATCHOS
+        fi
     elif [ "$WATCHOSARCH" = "arm64_32" ]; then
         export ARCHITECTURE_RUST="arm64_32"
         export ADDITIONAL_MESON_PROPERTIES="longdouble_format = 'IEEE_DOUBLE_LE'"
         export ENDIAN="little"
+        export _PLATFORM=WATCHOS64_32
     elif [ "$WATCHOSARCH" = "armv7k" ]; then
         export ARCHITECTURE_RUST="armv7k"
         export ADDITIONAL_MESON_PROPERTIES="longdouble_format = 'IEEE_DOUBLE_LE'"
         export ENDIAN="little"
+        export _PLATFORM=WATCHOS
     else
         export ARCHITECTURE_RUST="x86_64"
         export ENDIAN="big"
+        export _PLATFORM=SIMULATOR_WATCHOS
     fi
 
-    if [ "$WATCHOSSDK" = "watchos" ]; then
-        export _PLATFORM=WATCHOS64
+    if [ "$WATCHOSSDK" = "watchos" ]; then 
         export TARGET_TRIPLE="$ARCHITECTURE-apple-watchos6.0"
         export XCODE_DESTINATION_PLATFORM="watchOS"
         export AUTOGEN_FLAGS="--host=$ARCHITECTURE-apple-watchos --build=$(clang -dumpmachine)"
         export MINVERSION_FLAG="-mwatchos-version-min=$WATCHOS_DEPLOYMENT_TARGET"
         export INFO_PLATFORM_NAME="WatchOS"
     elif [ "$WATCHOSSDK" = "watchsimulator" ]; then
-        export _PLATFORM=SIMULATOR_WATCHOSCOMBINED
         export TARGET_TRIPLE="$ARCHITECTURE-apple-watchos6.0-simulator"
         export XCODE_DESTINATION_PLATFORM="watchOS Simulator"
         export AUTOGEN_FLAGS="--host=$ARCHITECTURE-apple-watchos6.0-simulator --build=$(clang -dumpmachine)"
@@ -154,6 +164,11 @@ elif [ "$IOSSDK" = "iphoneos" ] || [ "$IOSSDK" = "iphonesimulator" ]; then      
         export AUTOGEN_FLAGS="--host=$ARCHITECTURE-apple-simulator --build=$(clang -dumpmachine)"
         export MINVERSION_FLAG="-miphonesimulator-version-min=$IPHONEOS_DEPLOYMENT_TARGET"
         export INFO_PLATFORM_NAME="iPhoneSimulator"
+        if [ "$IOSARCH" = "arm64" ]; then
+            export _PLATFORM=SIMULATORARM64
+        elif [ "$IOSARCH" = "x86_64" ]; then
+            export _PLATFORM=SIMULATOR64
+        fi
     fi
     
     export XCODEBUILD_ADDITIONAL_FLAGS="-sdk '$IOSSDK' -destination 'generic/platform=$XCODE_DESTINATION_PLATFORM' PATH='$OLD_PATH' ARCHS='$IOSARCH' ONLY_ACTIVE_ARCH=NO"
@@ -174,12 +189,13 @@ else                                            # Mac Catalyst
     export MINVERSION_FLAG="-mios-version-min=13.1"
     export XCODEBUILD_ADDITIONAL_FLAGS="-sdk $SDK_NAME PATH='$OLD_PATH' SUPPORTS_MACCATALYST='YES' -destination 'platform=macOS,variant=Mac Catalyst' ARCHS='$MAC_CATALYST' ONLY_ACTIVE_ARCH=NO"
     export TARGET_TRIPLE="$ARCHITECTURE-apple-ios13.1-macabi"
-    export _PLATFORM="MAC_CATALYST_ARM64"
     export ENDIAN="big"
     if [ "$MAC_CATALYST" = "arm64" ]; then
         export ARCHITECTURE_RUST="aarch64"
+        export _PLATFORM=MAC_CATALYST_ARM64
     elif [ "$MAC_CATALYST" = "x86_64" ]; then
         export ARCHITECTURE_RUST="x86_64"
+        export _PLATFORM=MAC_CATALYST
     fi
     export AUTOGEN_FLAGS="--host=$ARCHITECTURE-apple-darwin --build=$(clang -dumpmachine)"
     export INFO_PLATFORM_NAME="MacOSX"
