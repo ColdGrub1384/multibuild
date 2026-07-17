@@ -38,7 +38,7 @@ public struct Script: Builder {
 
     public func buildScript(for target: Target, forceConfigure: Bool) -> String {
         let prefix = """
-        export BUILD_DIRECTORY=\"\(outputDirectoryPath(for: target).replacingOccurrences(of: "\"", with: "\\\""))\"
+        export BUILD_DIRECTORY=\"\(self.outputDirectoryPath(for: target).replacingOccurrences(of: "\"", with: "\\\""))\"
         export FORCE_CONFIGURE=\(forceConfigure ? "1" : "0")
         """
         

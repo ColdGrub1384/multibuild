@@ -32,7 +32,7 @@ public struct Meson: Builder {
         return """
 
         if [ "\(forceConfigure)" = "true" ]; then
-            rm -rf "\(outputDirectoryPath(for: target))"
+            rm -rf "\(self.outputDirectoryPath(for: target))"
         fi
 
         export ADDITIONAL_COMPILER_FLAGS="\(commaSeparatedFlags)"
@@ -67,13 +67,13 @@ public struct Meson: Builder {
 
         export MESON_FORCE_BACKTRACE=1
         if [ -z "$MAC_CATALYST" ]; then
-            meson setup "\(outputDirectoryPath(for: target))" -Ddocs=false --cross-file "$CROSS_FILE.temp" --native-file "$NATIVE_FILE"
+            meson setup "\(self.outputDirectoryPath(for: target))" -Ddocs=false --cross-file "$CROSS_FILE.temp" --native-file "$NATIVE_FILE"
         else
             # Not cross compiling when building for Mac Catalyst
-            meson setup -Ddocs=false "\(outputDirectoryPath(for: target))"
+            meson setup -Ddocs=false "\(self.outputDirectoryPath(for: target))"
         fi
 
-        meson compile -C "\(outputDirectoryPath(for: target))"
+        meson compile -C "\(self.outputDirectoryPath(for: target))"
         rm "$CROSS_FILE.temp"
         """
     }

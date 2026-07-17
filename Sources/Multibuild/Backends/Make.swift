@@ -48,11 +48,11 @@ public struct Make: Builder {
         PROJECT_DIR="$PWD"
         
         if [ "\(forceConfigure)" = "true" ]; then
-            rm -rf "\(outputDirectoryPath(for: target))"
+            rm -rf "\(self.outputDirectoryPath(for: target))"
         fi
         
-        mkdir -p "\(outputDirectoryPath(for: target))"
-        cd "\(outputDirectoryPath(for: target))"
+        mkdir -p "\(self.outputDirectoryPath(for: target))"
+        cd "\(self.outputDirectoryPath(for: target))"
         export CC="iosxcrun --sdk $SDK_NAME clang"
         export CXX="iosxcrun --sdk $SDK_NAME clang"
         export CPP="iosxcrun --sdk $SDK_NAME clang -E"
