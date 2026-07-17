@@ -52,6 +52,7 @@ public struct Project {
                 process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
                 process.arguments = ["describe", "--tags", "--abbrev=0"]
                 process.standardOutput = outputPipe
+                process.standardError = Pipe()
                 process.launch()
                 process.waitUntilExit()
 
