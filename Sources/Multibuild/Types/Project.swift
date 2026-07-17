@@ -178,7 +178,7 @@ public struct Project {
             
             for target in Platform.all.supportedTargets {
                 let wheelName = "\(projectName)-\(versionString ?? "unknown")-cp\(pythonBuilder.buildInterpreter.rawValue.replacingOccurrences(of: ".", with: ""))-cp\(pythonBuilder.buildInterpreter.rawValue.replacingOccurrences(of: ".", with: ""))-\(target.soabiPlatform.replacingOccurrences(of: "-", with: "_"))_\(target.architectures[0].rawValue).whl"
-                pythonBuilder.products.append(.wheel(wheelName))
+                pythonBuilder.products.append(.wheel(wheelName, targets: [target]))
             }
             self.builder = pythonBuilder
         } else {
@@ -246,7 +246,9 @@ public struct Project {
         var rootURL = directoryURL.appendingPathComponent("build")
         do {
             if builder.outputDirectoryPath(for: Target(systemName: .maccatalyst, architectures: [.arm64, .x86_64])).hasPrefix("build/") {
-                for file in try FileManager.default.contentsOfDirectory(at: directoryURL.appendingPathComponent("build"), includingPropertiesForKeys: nil) {
+                for filePath in try FileManager.default.contentsOfDirectory(atPath: rootURL.resolvingSymlinksInPath().path) {
+
+                    let file = rootURL.appendingPathComponent(filePath)
                     if file.lastPathComponent == "apple.universal" {
                         appleUniversalBuildDirectoryURL = file
                         continue
@@ -260,7 +262,7 @@ public struct Project {
                 }
             } else {
                 for target in Platform.all.supportedTargets {
-                    let buildDir = directoryURL.appendingPathComponent(builder.outputDirectoryPath(for: target))
+                    let buildDir = directoryURL.resolvingSymlinksInPath().appendingPathComponent(builder.outputDirectoryPath(for: target))
                     rootURL = buildDir.deletingLastPathComponent()
                     
                     if FileManager.default.fileExists(atPath: buildDir.path) {
@@ -323,8 +325,6 @@ public struct Project {
         })
     }
 
-    private static var installedPythonPackages = [URL]()
-
     internal func build(for targets: [Target],
                         universalBuild: Bool,
                         forceConfigure: Bool,
@@ -337,7 +337,7 @@ public struct Project {
         var _targets = [Target]()
         if universalBuild {
             _targets = targets
-            } else { // On non universal builds, split targets per each architecture
+        } else { // On non universal builds, split targets per each architecture
             for target in targets {
                 for arch in target.architectures {
                     _targets.append(Target(systemName: target.systemName, architectures: [arch]))
