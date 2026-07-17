@@ -4,21 +4,63 @@ import sys
 import os
 import subprocess
 
-args = sys.argv
-del args[0]
+args = sys.argv[1:]
 
 new_args = ["xcrun"]
 
+# Pick up SDK from environment if not passed
+if "SDK_NAME" in os.environ:
+    has_sdk = False
+    for i in range(len(args)):
+        if args[i] == "--sdk":
+            has_sdk = True
+            break
+    
+    if not has_sdk:
+        new_args.extend(["--sdk", os.environ["SDK_NAME"]])
+
+# Pick up tool from environment if not passed
+if "IOSXCRUN_TOOL" in os.environ:
+    has_tool = False
+    tools = ["clang", "clang++", "ld", "ar", "libtool", "ranlib", "strip", "install_name_tool", "dsymutil"]
+    for i in range(len(args)):
+        if args[i] in tools:
+            has_tool = True
+            break
+    
+    if not has_tool:
+        new_args.append(os.environ["IOSXCRUN_TOOL"])
+
 is_just_c_not_cpp = True
-for arg in sys.argv:
+for arg in args:
     if arg.endswith(".cpp") or arg.endswith(".cxx") or arg.endswith(".cc"):
         is_just_c_not_cpp = False
 
+# Fallback to clang/clang++ if no tool is specified and we have files to compile
+has_tool = False
+tools = ["clang", "clang++", "ld", "ar", "libtool", "ranlib", "strip", "install_name_tool", "dsymutil"]
+for i in range(len(new_args)):
+    if new_args[i] in tools:
+        has_tool = True
+        break
+
+if not has_tool:
+    for arg in args:
+        if arg.startswith("-"):
+            continue
+        if arg.endswith(".c") or arg.endswith(".cpp") or arg.endswith(".cxx") or arg.endswith(".cc") or arg.endswith(".m") or arg.endswith(".mm") or arg.endswith(".o") or arg.endswith(".a") or arg.endswith(".dylib") or arg.endswith(".so"):
+            if is_just_c_not_cpp:
+                new_args.append("clang")
+            else:
+                new_args.append("clang++")
+            has_tool = True
+            break
+
 assembly = False
 is_preprocessor = False
-for arg in sys.argv:
+for arg in args:
 
-    if ("--version" in sys.argv or "-Wl,--version" in sys.argv) and arg.startswith("-Wl,--defsym"):
+    if ("--version" in args or "-Wl,--version" in args) and arg.startswith("-Wl,--defsym"):
         continue
 
     if arg == "-static":
@@ -31,7 +73,7 @@ for arg in sys.argv:
         continue
 
     # prioritize -target over -arch
-    if new_args[-1] == "-arch" and "-target" in sys.argv:
+    if new_args[-1] == "-arch" and "-target" in args:
         new_args.pop(-1)
         continue
     
@@ -49,6 +91,9 @@ for arg in sys.argv:
         continue
     
     if arg == "-nologo":
+        continue
+
+    if arg == "-lgfortran":
         continue
 
     # I don't know why but something is forcing to link to a "Python" framework even if we already specified another Python framework name
@@ -70,21 +115,21 @@ for arg in sys.argv:
         continue
 
     if arg == "-lclang_rt.osx" and "SDK_NAME" in os.environ:
-        match os.environ["SDK_NAME"]:
-            case "iphoneos":
-                 arg = "-lclang_rt.ios"
-            case "iphonesimulator":
-                arg = "-lclang_rt.iossim"
-            case "watchos":
-                arg = "-lclang_rt.watchos"
-            case "watchsimulator":
-                arg = "-lclang_rt.watchossim"
-            case "appletvos":
-                arg = "-lclang_rt.tvos"
-            case "appletvsimulator":
-                arg = "-lclang_rt.tvossim"
-            case _:
-                arg = "-lclang_rt.osx"
+        sdk_name = os.environ["SDK_NAME"]
+        if sdk_name == "iphoneos":
+             arg = "-lclang_rt.ios"
+        elif sdk_name == "iphonesimulator":
+            arg = "-lclang_rt.iossim"
+        elif sdk_name == "watchos":
+            arg = "-lclang_rt.watchos"
+        elif sdk_name == "watchsimulator":
+            arg = "-lclang_rt.watchossim"
+        elif sdk_name == "appletvos":
+            arg = "-lclang_rt.tvos"
+        elif sdk_name == "appletvsimulator":
+            arg = "-lclang_rt.tvossim"
+        else:
+            arg = "-lclang_rt.osx"
 
     if arg.endswith(".S") and new_args[-1] == "-c":
         assembly = True
@@ -100,7 +145,7 @@ for arg in sys.argv:
             arg = "-fPIC"
     new_args.append(arg)
 
-if len(new_args) > 1 and new_args[1].startswith("-") and assembly:
+if len(new_args) > 1 and new_args[1].startswith("-") and new_args[1] != "--sdk" and "clang" not in new_args and assembly:
     new_args.insert(1, "clang")
 
 p = subprocess.Popen(new_args)
