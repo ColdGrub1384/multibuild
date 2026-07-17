@@ -89,6 +89,57 @@ public struct Build {
         pkgConfigFlags("Libs", for: target)
     }
 
+    /// Finds a generated wheel file in the specified directory for a target and Python version.
+    ///
+    /// - Parameters:
+    ///     - directory: Directory URL to search for wheel files.
+    ///     - target: Target platform.
+    ///     - python: Python version.
+    ///
+    /// - Returns: The URL of the Python wheel, or nil if not found.
+    public static func wheelURL(in directory: URL, for target: Target, python: Python.BuildInterpreter) -> URL? {
+        guard let majorVersionWeAreInstalling = Int(python.rawValue.components(separatedBy: ".")[1]) else {
+            return nil
+        }
+        
+        var wheelURL: URL?
+        var abi3WheelURL: URL?
+        for file in (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? [] {
+            guard file.pathExtension == "whl" else {
+                continue
+            }
+
+            guard file.lastPathComponent.contains(target.soabiPlatform+"_"+target.architectures[0].rawValue+".whl") && file.lastPathComponent.contains(target.architectures[0].rawValue) else {
+                continue
+            }
+
+            let cpSuffix = "cp\(python.rawValue.replacingOccurrences(of: ".", with: ""))"
+            if file.lastPathComponent.contains("\(cpSuffix)-\(cpSuffix)") {
+                wheelURL = file
+                break
+            } else if file.lastPathComponent.contains("-abi3") {
+                for comp in file.lastPathComponent.components(separatedBy: "-") {
+                    guard comp.hasPrefix("cp") else {
+                        continue
+                    }
+                    guard let majorVersion = Int(comp.replacingOccurrences(of: "cp3", with: "")) else {
+                        continue
+                    }
+
+                    if majorVersion <= majorVersionWeAreInstalling {
+                        abi3WheelURL = file
+                    }
+                }
+            }
+        }
+
+        if wheelURL == nil {
+            return abi3WheelURL
+        } else {
+            return wheelURL
+        }
+    }
+
     /// In case of the project being a Python package, the URL of a generated wheel for a target.
     ///
     /// - Parameters:
@@ -97,24 +148,10 @@ public struct Build {
     ///
     /// - Returns: The URL of the Python wheel.
     public func wheelURL(for target: Target, python: Python.BuildInterpreter) -> URL? {
-        guard let buildDir = buildDirectoryURL(for: target) else {
+        guard let buildDir = buildDirs[target] else {
             return nil
         }
-        
-        var wheelURL: URL?
-        for file in (try? FileManager.default.contentsOfDirectory(at: buildDir, includingPropertiesForKeys: nil)) ?? [] {
-            let cpSuffix = "cp\(python.rawValue.replacingOccurrences(of: ".", with: ""))"
-            if
-                file.pathExtension == "whl" &&
-                file.lastPathComponent.contains("\(cpSuffix)-\(cpSuffix)") &&
-                    file.lastPathComponent.contains(target.soabiPlatform+"_"+target.architectures[0].rawValue+".whl") &&
-                file.lastPathComponent.contains(target.architectures[0].rawValue) {
-                wheelURL = file
-                break
-            }
-        }
-
-        return wheelURL
+        return Self.wheelURL(in: buildDir, for: target, python: python)
     }
 
     private func target(from buildURL: URL) -> Target? {
@@ -140,6 +177,58 @@ public struct Build {
         }
 
         return nil
+    }
+
+    private func mergeSwiftModules(from frameworks: [URL], to outputFramework: URL) {
+        let swiftmodules = frameworks.compactMap { framework -> URL? in
+            let moduleDir = framework.appendingPathComponent("Modules")
+            if let contents = try? FileManager.default.contentsOfDirectory(at: moduleDir, includingPropertiesForKeys: nil) {
+                if let swiftmodule = contents.first(where: { $0.pathExtension == "swiftmodule" }) {
+                    return swiftmodule
+                }
+            }
+ 
+            let versionedModuleDir = framework.appendingPathComponent("Versions/Current/Modules")
+            if let contents = try? FileManager.default.contentsOfDirectory(at: versionedModuleDir, includingPropertiesForKeys: nil) {
+                if let swiftmodule = contents.first(where: { $0.pathExtension == "swiftmodule" }) {
+                    return swiftmodule
+                }
+            }
+
+            return nil
+        }
+
+        if !swiftmodules.isEmpty {
+            let outputSwiftModule: URL
+            if FileManager.default.fileExists(atPath: outputFramework.appendingPathComponent("Versions").path) {
+                outputSwiftModule = outputFramework.appendingPathComponent("Versions/Current/Modules")
+                    .appendingPathComponent(swiftmodules[0].lastPathComponent)
+            } else {
+                outputSwiftModule = outputFramework.appendingPathComponent("Modules")
+                    .appendingPathComponent(swiftmodules[0].lastPathComponent)
+            }
+ 
+            if !FileManager.default.fileExists(atPath: outputSwiftModule.path) {
+                try? FileManager.default.createDirectory(at: outputSwiftModule, withIntermediateDirectories: true)
+            }
+
+            var moduleFiles = Set<String>()
+            for moduleDir in swiftmodules {
+                let contents = (try? FileManager.default.contentsOfDirectory(at: moduleDir, includingPropertiesForKeys: nil)) ?? []
+                moduleFiles.formUnion(contents.map { $0.lastPathComponent })
+            }
+
+            for moduleFile in moduleFiles {
+                for moduleDir in swiftmodules {
+                    let sourceFile = moduleDir.appendingPathComponent(moduleFile)
+                    if FileManager.default.fileExists(atPath: sourceFile.path) {
+                        try? FileManager.default.copyItem(at: sourceFile, 
+                            to: outputSwiftModule.appendingPathComponent(moduleFile))
+                        break
+                    }
+                }
+            }
+        }
     }
 
     private func merge(urls: inout [URL]) throws {
