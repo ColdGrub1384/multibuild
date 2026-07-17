@@ -396,8 +396,6 @@ public struct Project {
                 
                 // Dependencies
                 
-                try doWillBuild(target)
-                
                 for dep in dependencies {
                     var project = dep.project
                     if project == nil, let name = dep.name {
@@ -409,16 +407,21 @@ public struct Project {
 
                     // Build only if products are not present
                     var compile = forceConfigure
-                    if project!.builder.products.isEmpty {
+                    if project!.builder.products.isEmpty && !(project!.builder is Python) {
                         compile = true
                     }
                     for product in project!.builder.products {
                         for path in product.libraryPaths {
                             for target in _targets {
+                                guard product.targets == nil || product.targets!.contains(target) else {
+                                    continue
+                                }
+
                                 guard let url = project!.build?.buildDirectoryURL(for: target)?.appendingPathComponent(path) else {
                                     compile = true
                                     break
                                 }
+
                                 if !FileManager.default.fileExists(atPath: url.path) {
                                     compile = true
                                     break
@@ -426,6 +429,7 @@ public struct Project {
                             }
                         }
                     }
+
                     if compile {
                         try project!.compile(for: [target], universalBuild: universalBuild, forceConfigure: forceConfigure)
                         if package {
@@ -454,6 +458,7 @@ public struct Project {
                 }
 
                 // Build
+                try doWillBuild(target)
                 let buildScriptURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("\(UUID().uuidString).sh")
                 try """
                 cd \"\(directoryURL.path.replacingOccurrences(of: "\"", with: "\\\""))\"
@@ -487,6 +492,7 @@ public struct Project {
                 // Built
                 if process.terminationStatus != 0 {
                     let error = CompileError(exitCode: Int(process.terminationStatus), target: target)
+                    undoPatch()
                     try doDidBuild(target, error)
                     throw error
                 }
