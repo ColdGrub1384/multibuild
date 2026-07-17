@@ -8,10 +8,10 @@ public protocol Builder {
 
     /// Environment variables for a given target.
     var environment: ((Target) -> [String:String])? { get set }
-    
+
     /// Output directory path.
     /// Default value is "build/<sdk>.arch1(-arch2)".
-    /// 
+    ///
     /// Parameters:
     ///     - target: Target to find.
     ///
@@ -25,7 +25,7 @@ public protocol Builder {
     ///     - forceConfigure: Force regenerating configuration files.
     /// 
     /// - Returns: A bash script as plain code.
-    func buildScript(for target: Target, forceConfigure: Bool) -> String
+    func buildScript(for target: Target, forceConfigure: Bool) -> String 
 }
 
 public extension Builder {
@@ -71,5 +71,9 @@ internal func targetEnvironment(for target: Target) -> [String:String] {
             ]
     }
     flags["_PYTHON_HOST_PLATFORM"] = "\(target.soabiPlatform.replacingOccurrences(of: "_", with: "-"))-\(target.architectures.map({ $0.rawValue }).joined(separator: "-"))"
+ 
+    let platformTag = target.soabiPlatform.replacingOccurrences(of: "-", with: "_") + "_" + target.architectures[0].rawValue
+    flags["SKBUILD_PLATFORM_TAG"] = platformTag
+
     return flags
 }
