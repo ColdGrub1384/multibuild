@@ -18,11 +18,14 @@ import platform
 import subprocess
 import sysconfig
 import platform
-import traceback as tb
-import setuptools
-import distutils.sysconfig
 from collections import namedtuple
 from code import interact
+try:
+    import setuptools
+    import distutils.sysconfig
+    imported_distutils = True
+except ModuleNotFoundError:
+    imported_distutils = False
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from _activate_venv import activate_venv
@@ -52,15 +55,17 @@ def platform_system():
 if "PYTHON_CROSS_COMPILING" in os.environ:
     __file__ = os.environ["PYTHON_EXEC_PATH"]
     sys.platform = os.environ["PYTHON_PLATFORM"].split("_")[0]
-    sys.implementation._multiarch = f"{os.environ["ARCHS"].replace(";", "-")}{os.environ["SDK_NAME"]}"
+    if "SDK_NAME" in os.environ and "ARCHS" in os.environ:
+        sys.implementation._multiarch = f"{os.environ["ARCHS"].replace(";", "-")}{os.environ["SDK_NAME"]}"
     platform.system = platform_system
     platform.ios_ver = ios_ver
     subprocess._can_fork_exec = True
-    distutils.sysconfig.get_python_inc = get_python_inc
     sys.argv.pop(0)
     sys.executable = os.path.join(os.path.dirname(os.path.abspath(__file__)), "python3")
     sys._base_executable = sys.executable
     sys.argv.insert(0, sys.executable)
+    if imported_distutils:
+        distutils.sysconfig.get_python_inc = get_python_inc
 
 ## Interpreter  ##
 
@@ -75,6 +80,8 @@ def main():
     pyvenv = os.path.join(os.path.dirname(bin_path), "pyvenv.cfg")
     if os.path.exists(pyvenv):
         activate_venv(bin_path)
+
+    sys.path.append(os.getcwd())
 
     if len(sys.argv) == 1 and sys.stdin.isatty():
         return interact()
@@ -100,7 +107,12 @@ def main():
             sys.exit(1)
 
         exec(_code)
-    elif sys.argv[1] == "-m":
+    elif sys.argv[1] == "-m" or sys.argv[1].startswith("-m"):
+        if sys.argv[1] != "-m":
+            mod = sys.argv[1].replace("-m", "")
+            sys.argv.pop(1)
+            sys.argv.insert(1, mod)
+            sys.argv.insert(1, "-m")
         try:
             sys.argv.pop(0)
             sys.argv.pop(0)
