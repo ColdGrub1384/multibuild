@@ -370,17 +370,22 @@ public struct Project {
 
         try FileManager.default.removeItem(at: checkoutScriptURL)
 
-        // Install Python package in build machine
-        if let pythonBuilder = builder as? Python, !Self.installedPythonPackages.contains(directoryURL.resolvingSymlinksInPath()), false {
-            let pip = Process()
-            pip.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-            pip.arguments = ["python\(pythonBuilder.buildInterpreter.rawValue)", "-m", "pip", "install", "."]
-            pip.currentDirectoryURL = directoryURL.resolvingSymlinksInPath()
-            pip.launch()
-            pip.waitUntilExit()
-            Self.installedPythonPackages.append(directoryURL.resolvingSymlinksInPath())
+        func undoPatch() {
+            // Undo patch
+            if let patch = patchURL?.path {
+                let revertPatch = Process()
+                revertPatch.currentDirectoryURL = gitRepo ?? directoryURL.resolvingSymlinksInPath()
+                revertPatch.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+                if isGitRepo {
+                    revertPatch.arguments = ["reset", "--hard", "HEAD~1"]
+                } else {
+                    revertPatch.arguments = ["apply", "-R", patch]
+                }
+                revertPatch.launch()
+                revertPatch.waitUntilExit()
+            }
         }
-        
+
         if !skipBuild {
             for target in _targets {
 
