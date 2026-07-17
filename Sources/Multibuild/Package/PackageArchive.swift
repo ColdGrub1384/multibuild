@@ -14,6 +14,9 @@ public struct PackageArchive {
         
         /// A Python wheel.
         case pythonWheel
+    
+        /// A generic package archive
+        case unknown
     }
 
     /// URL of the archive.
