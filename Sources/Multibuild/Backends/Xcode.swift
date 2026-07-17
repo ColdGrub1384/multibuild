@@ -57,19 +57,27 @@ public struct Xcode: Builder {
     }
 
     public func buildScript(for target: Target, forceConfigure: Bool) -> String {
-        let buildDir = outputDirectoryPath(for: target)
+        let buildDir = self.outputDirectoryPath(for: target)
         var script = """
+        expand_path() {
+            case "$1" in
+                /*) printf "%s\n" "$1" ;;
+                *) printf "%s\n" "$PWD/$1" ;;
+            esac
+        }
+
         PROJ_NAME="$(basename "$PWD")"
+        build_dir="$(expand_path "\(buildDir)")"
         export XCRUN="$(which xcrun)"
         export CC=
         export CXX=
 
         if [ "\(forceConfigure)" = "true" ]; then
-            rm -rf "\(buildDir)"
+            rm -rf "$build_dir"
         else
             GLOBIGNORE="\(configuration)-\(target.systemName)"
-            mkdir -p "\(buildDir)/\(configuration)-\(target.systemName)"
-            mv "\(buildDir)"/*  "\(buildDir)/\(configuration)-\(target.systemName)/" &> /dev/null
+            mkdir -p "$build_dir/\(configuration)-\(target.systemName)"
+            mv "$build_dir"/*  "$build_dir/\(configuration)-\(target.systemName)/" &> /dev/null
         fi
 
         """
@@ -80,7 +88,7 @@ public struct Xcode: Builder {
             -configuration "\(configuration)" \\
             -scheme \(scheme) \\
             $XCODEBUILD_ADDITIONAL_FLAGS \\
-            BUILD_DIR="\(buildDir)" &&
+            BUILD_DIR="$build_dir" &&
 
             """
         }
@@ -92,7 +100,7 @@ public struct Xcode: Builder {
             -configuration "\(configuration)" \\
             -target \(target) \\
             $XCODEBUILD_ADDITIONAL_FLAGS \\
-            SYMROOT="\(buildDir)" &&
+            SYMROOT="$build_dir" \\ &&
 
             """
         }
@@ -104,8 +112,8 @@ public struct Xcode: Builder {
             exit_code=1
         fi
 
-        mv "\(buildDir)/\(configuration)-\(target.systemName)"/* "\(buildDir)/"
-        rm -rf "\(buildDir)/\(configuration)-\(target.systemName)"
+        mv "$build_dir/\(configuration)-\(target.systemName)"/* "$build_dir/"
+        rm -rf "$build_dir/\(configuration)-\(target.systemName)"
 
         exit $exit_code
         """
