@@ -69,11 +69,15 @@ public struct CMake: Builder {
         var options = [
             "ARCHS": target.architectures.map({ $0.rawValue }).joined(separator: ";"),
             "CMAKE_MACOSX_BUNDLE": "OFF",
-            "ENABLE_VISIBILITY": "ON"
+            "ENABLE_VISIBILITY": "ON",
+            "CMAKE_INSTALL_PREFIX": self.outputDirectoryPath(for: target),
         ]
         if target.isApple {
             options["CMAKE_TOOLCHAIN_FILE"] = Bundle.module.path(forResource: "ios.toolchain", ofType: "cmake")
         }
+        let iosxcrun = Bundle.module.path(forResource: "iosxcrun", ofType: nil, inDirectory: "Environment")!
+        options["CMAKE_C_COMPILER"] = iosxcrun
+        options["CMAKE_CXX_COMPILER"] = iosxcrun
         for option in self.options(target) {
             var value = option.value
             if option.key == "CMAKE_C_FLAGS" || option.key == "CMAKE_CXX_FLAGS" {
@@ -92,7 +96,7 @@ public struct CMake: Builder {
 
         let buildInvocation = generator.buildProgram(target).map({ "\"\($0.replacingOccurrences(of: "\"", with: "\\\""))\"" }).joined(separator: " ")
 
-        let buildDir = outputDirectoryPath(for: target)
+        let buildDir = self.outputDirectoryPath(for: target)
         return """
         export CC=
         export CXX=
