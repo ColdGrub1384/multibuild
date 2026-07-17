@@ -1,10 +1,21 @@
 #!/bin/bash
 
+# Filter out the python library if we are linking against the framework
+ARGS=()
+LIB_TO_FILTER="-lpython$VERSION"
+
+for arg in "$@"; do
+    if [[ "$arg" == "$LIB_TO_FILTER" ]]; then
+        continue
+    fi
+    ARGS+=("$arg")
+done
+
 if [ -z "$PYTHON_LINK" ]; then
-    iosxcrun clang "$@"
+    iosxcrun clang "${ARGS[@]}"
 elif [[ "$@" == *"$CARGO_BUILD_TARGET"* ]]; then
-    IFS=', ' read -ra args <<< "${PYTHON_LINK//\'/}"
-    iosxcrun clang "${args[@]}" "$@"
+    IFS=', ' read -ra link_args <<< "${PYTHON_LINK//\'/}"
+    iosxcrun clang "${link_args[@]}" "${ARGS[@]}"
 else
-    iosxcrun clang "$@"
+    iosxcrun clang "${ARGS[@]}"
 fi
