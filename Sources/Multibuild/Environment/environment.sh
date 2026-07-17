@@ -15,13 +15,19 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 export VERSION="$1"
 export PLAIN_VERSION="${VERSION//.}"
 export XCRUN="iosxcrun"
+export TOOLS_DIR="$PWD"
 
+export _ORIGINAL_GFORTRAN_EXECUTABLE="$(which gfortran)"
+if [ -z "$FC" ]; then
+    export _FORTRAN_EXECUTABLE="$_ORIGINAL_GFORTRAN_EXECUTABLE"
+else
+    export _FORTRAN_EXECUTABLE="$FC"
+fi
 export _PYTHON_EXECUTABLE="$(which "python$VERSION")"
 export _PKG_CONFIG_EXECUTABLE="$(which pkg-config)"
 export _RUSTC_EXECUTABLE="$(which rustc)"
 export _CARGO_EXECUTABLE="$(which cargo)"
-
-export TOOLS_DIR="$PWD"
+export FC="$TOOLS_DIR/gfortran"
 
 if [ -z "$IOSSDK" ] && [ -z "$MAC_CATALYST" ] && [ -z "$WATCHOSSDK" ] && [ -z "$TVOSSDK" ]; then # Other platforms
 
