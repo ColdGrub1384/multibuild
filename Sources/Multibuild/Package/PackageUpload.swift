@@ -84,13 +84,18 @@ public struct PackageUpload {
         let curl = Process()
         curl.currentDirectoryURL = archive.url.deletingLastPathComponent().resolvingSymlinksInPath()
         curl.executableURL = URL(fileURLWithPath: "/usr/bin/curl")
+
+        let nameComps = PersonNameComponentsFormatter().personNameComponents(from: user.fullName)
+        let givenName = nameComps?.givenName ?? ""
+        let familyName = nameComps?.familyName ?? ""
+
         switch kind {
             case .swift:
                 curl.arguments = [
                     "-X", "PUT", "--user", "\(user.name):\(user.token)",
                     "-H", "Accept: application/vnd.swift.registry.v1+json",
                     "-F", "source-archive=@\(archive.url.lastPathComponent)",
-                    "-F", "metadata={\"author\":{\"@type\":\"Person\", \"name\": \"\(user.fullName)\"}}",
+                    "-F", "metadata={\"author\":{\"@type\":\"Person\", \"name\": \"\(user.fullName)\", \"givenName\": \"\(givenName)\", \"familyName\": \"\(familyName)\"}}",
                     registryURL.appendingPathComponent("\(archive.url.deletingPathExtension().lastPathComponent)/\(archive.version ?? "0.0.0")").absoluteString
                 ]
             case .pypi:
