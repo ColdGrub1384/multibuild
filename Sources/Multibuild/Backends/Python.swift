@@ -16,7 +16,7 @@ public struct Python: Builder {
         case rust
         
         /// Scikit-Build. Takes target specific CMake flags.
-        case scikitBuild((Target) -> [String:String])
+        case scikitBuild(((Target) -> [String:String])? = nil)
         
         /// Default backend with no additional configuration
         case `default`
@@ -185,12 +185,19 @@ public struct Python: Builder {
             var options = [
                 "ARCHS": target.architectures.map({ $0.rawValue }).joined(separator: ";"),
                 "CMAKE_MACOSX_BUNDLE": "OFF",
-                "ENABLE_VISIBILITY": "ON"
+                "ENABLE_VISIBILITY": "ON",
+                "CMAKE_C_FLAGS": flags,
+                "CMAKE_CXX_FLAGS": flags+" -lstdc++",
             ]
+ 
+            let iosxcrun = Bundle.module.path(forResource: "iosxcrun", ofType: nil, inDirectory: "Environment")!
+            options["CMAKE_C_COMPILER"] = iosxcrun
+            options["CMAKE_CXX_COMPILER"] = iosxcrun
+
             if target.isApple {
                 options["CMAKE_TOOLCHAIN_FILE"] = Bundle.module.path(forResource: "ios.toolchain", ofType: "cmake")
             }
-            for option in opts(target) {
+            for option in opts?(target) ?? [:] {
                 var value = option.value
                 if option.key == "CMAKE_C_FLAGS" || option.key == "CMAKE_CXX_FLAGS" {
                     var archs = ""
@@ -221,20 +228,20 @@ public struct Python: Builder {
             fi
             export CMAKE_ARGS='\(options.map({
                 "-D\($0.key)=\"\($0.value.replacingOccurrences(of: "\"", with: "\\\""))\""
-            }).joined(separator: " ")) -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH"'
-            
+            }).joined(separator: " ")) -DCMAKE_PREFIX_PATH="$(CMAKE_PREFIX_PATH)"'
+
             python -m pip install git+https://git.gatit.es/pyto/scikit-build.git@0.18.3
             BUILD
             """
         case .default:
             buildCall = "BUILD"
         }
-                
+
         return """
         export CFLAGS="$CFLAGS \(flags)"
         export CXXFLAGS="$CXXFLAGS \(flags)"
         export ADDITIONAL_COMPILER_FLAGS="\(commaSeparatedFlags)"
-        
+
         \(buildCall) \((additionalArguments?(target) ?? []).map({ "\($0.replacingOccurrences(of: "'", with: "\\'"))"}).joined(separator: " "))
         """
     }
