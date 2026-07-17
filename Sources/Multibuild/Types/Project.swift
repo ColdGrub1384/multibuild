@@ -502,40 +502,87 @@ public struct Project {
                 try doDidBuild(target, nil)
             }
         }
-        
-        // Undo patch
-        if let patch = patchURL?.path {
-            let revertPatch = Process()
-            revertPatch.currentDirectoryURL = gitRepo ?? directoryURL.resolvingSymlinksInPath()
-            revertPatch.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-            if isGitRepo {
-                revertPatch.arguments = ["reset", "--hard", "HEAD~1"]
-            } else {
-                revertPatch.arguments = ["apply", "-R", patch]
-            }
-            revertPatch.launch()
-            revertPatch.waitUntilExit()
-        }
 
+        undoPatch()
 
         // Package
         if targets.contains(where: { $0.isApple }) && package && !(builder is Python) {
-            if let frameworks = try build?.createXcodeFrameworks(bundleIdentifierPrefix: bundleIdentifierPrefix) {
-                for framework in frameworks {
-                    let archiveURL = framework.deletingLastPathComponent().appendingPathComponent("apple-universal-\(framework.lastPathComponent).zip")
-                    try? FileManager.default.removeItem(at: archiveURL)
-                    try FileManager.default.zipItem(at: framework, to: archiveURL)
-                    let archive = PackageArchive(url: archiveURL, name: directoryURL.lastPathComponent, version: versionString, kind: .xcodeFramework)
-                    if let packageUpload = packageUpload(archive), upload {
-                        try packageUpload.start(with: archive)
-                    }
-                    try FileManager.default.removeItem(at: archiveURL)
+            if build?.appleUniversalBuildDirectoryURL == nil && build?.buildRootDirectory.lastPathComponent == "build" {
+                try FileManager.default.createDirectory(at: build!.buildRootDirectory.appendingPathComponent("apple.universal"), withIntermediateDirectories: true)
+            }
+
+            let packageResourcesDir = build!.buildRootDirectory.appendingPathComponent("package-resources")
+            for product in builder.products {
+                guard case .resource = product.kind else {
+                    continue
                 }
 
-                if let archiveURL = try build?.createSwiftPackage(xcodeFrameworks: frameworks) {
-                    print("Generated Swift Package at \(archiveURL.path)")
-                    let archive = PackageArchive(url: archiveURL, name: archiveURL.deletingPathExtension().lastPathComponent, version: versionString, kind: .swiftPackage)
-                    if let packageUpload = packageUpload(archive), upload {
+                guard let target = _targets.first else {
+                    continue
+                }
+
+                guard let buildDir = build?.buildDirectoryURL(for: target) else {
+                    continue
+                }
+
+                for resourcePath in product.libraryPaths {
+                    let resourceURL = buildDir.appendingPathComponent(resourcePath)
+                    guard FileManager.default.fileExists(atPath: resourceURL.path) else {
+                        print("\(resourceURL.path) does not exist")
+                        continue
+                    } 
+                    try? FileManager.default.createDirectory(at: packageResourcesDir, withIntermediateDirectories: true)
+                    let archiveURL = packageResourcesDir.appendingPathComponent("\(resourceURL.lastPathComponent).zip")
+                    try? FileManager.default.removeItem(at: archiveURL)
+                    try FileManager.default.zipItem(at: resourceURL, to: archiveURL)
+                    let archive = PackageArchive(url: archiveURL, name: directoryURL.lastPathComponent, version: versionString, kind: .unknown)
+                    if let packageUpload = packageUpload(archive) {
+                        if upload {
+                            try packageUpload.start(with: archive)
+                        }
+                    }
+                    try? FileManager.default.removeItem(at: archiveURL)
+                }
+            }
+            try? FileManager.default.removeItem(at: packageResourcesDir)
+
+            let frameworks = (try build?.createXcodeFrameworks(bundleIdentifierPrefix: bundleIdentifierPrefix)) ?? []
+            for framework in frameworks {
+                let archiveURL = framework.deletingLastPathComponent().appendingPathComponent("apple-universal-\(framework.lastPathComponent).zip")
+                try? FileManager.default.removeItem(at: archiveURL)
+                try FileManager.default.zipItem(at: framework, to: archiveURL)
+                let archive = PackageArchive(url: archiveURL, name: directoryURL.lastPathComponent, version: versionString, kind: .xcodeFramework)
+                if let packageUpload = packageUpload(archive) {
+                    if upload {
+                        try packageUpload.start(with: archive)
+                    }
+                }
+                try FileManager.default.removeItem(at: archiveURL)
+            }
+
+            let resourceURLs = builder.products.compactMap { product -> [URL]? in
+                guard case .resource = product.kind else {
+                    return nil
+                }
+
+                return product.libraryPaths.compactMap { resourcePath -> URL? in
+                    guard let matchingTarget = _targets.first else {
+                        return nil
+                    }
+
+                    guard let buildDir = build?.buildDirectoryURL(for: matchingTarget) else {
+                        return nil
+                    }
+
+                    return buildDir.appendingPathComponent(resourcePath)
+                }
+            }.flatMap { $0 }
+
+            if let archiveURL = try build?.createSwiftPackage(xcodeFrameworks: frameworks, resources: resourceURLs) {
+                print("Generated Swift Package at \(archiveURL.path)")
+                let archive = PackageArchive(url: archiveURL, name: archiveURL.deletingPathExtension().lastPathComponent, version: versionString, kind: .swiftPackage)
+                if let packageUpload = packageUpload(archive) {
+                    if upload {
                         try packageUpload.start(with: archive)
                     }
                 }
@@ -547,7 +594,6 @@ public struct Project {
                 guard let wheelURL = build?.wheelURL(for: target, python: builder.buildInterpreter) else {
                     continue
                 }
-                
                 let archive = PackageArchive(url: wheelURL, name: wheelURL.lastPathComponent.components(separatedBy: "-")[0], version: wheelURL.lastPathComponent.components(separatedBy: "-")[1], kind: .pythonWheel)
                 if let packageUpload = packageUpload(archive), upload {
                     try packageUpload.start(with: archive)
@@ -653,6 +699,8 @@ public struct Project {
                     if let libPath, FileManager.default.fileExists(atPath: buildDir.appendingPathComponent(libPath).path) {
                         linkFlags.append("-L${prefix}")
                         linkFlags.append("-l\(Framework.frameworkify(buildDir.appendingPathComponent(libPath)))")
+                    } else if let libPath {
+                        print("Warning: \(libPath) does not exist for target \(target.systemName.rawValue).\(target.architectures.map { $0.rawValue }.joined(separator: "-"))", to: &StandardError)
                     }
                 }
             }
