@@ -469,6 +469,8 @@ public struct Project {
                 process.executableURL = URL(fileURLWithPath: "/bin/bash")
                 process.environment = [:]
                 process.environment?["PKG_CONFIG_LIBDIR"] = pkgConfigPath.joined(separator: ":")
+                process.environment?["CMAKE_PREFIX_PATH"] = pkgConfigPath.joined(separator: ";")
+                process.environment?["CMAKE_MODULE_PATH"] = ""
                 process.environment?["BUILD_SCRIPT"] = buildScriptURL.path
                 for (key, value) in ProcessInfo.processInfo.environment {
                     process.environment?[key] = value
