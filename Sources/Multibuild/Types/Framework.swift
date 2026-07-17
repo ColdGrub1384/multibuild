@@ -72,6 +72,12 @@ public struct Framework {
             case .watchsimulator:
                 minimumOSVersion = "6.0"
                 platformString = "WatchSimulator"
+            case .appletvos:
+                minimumOSVersion = "13.0"
+                platformString = "AppleTVOS"
+            case .appletvsimulator:
+                minimumOSVersion = "13.0"
+                platformString = "AppleTVSimulator"
             case .maccatalyst:
                 minimumOSVersion = "11.0"
                 platformString = "MacOSX"
@@ -123,10 +129,15 @@ public struct Framework {
     }
 
     private func rewriteInstallName(binaryURL: URL) {
+        var binaryURLFixed = binaryURL
+        if binaryURLFixed.lastPathComponent.hasSuffix(".merged.dylib") {
+            binaryURLFixed.deletePathExtension()
+            binaryURLFixed.deletePathExtension()
+        }
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/install_name_tool")
         process.arguments = [
-            "-id", installName ?? "@rpath/\(binaryURL.lastPathComponent).framework/\(binaryURL.lastPathComponent)",
+            "-id", installName ?? "@rpath/\(binaryURLFixed.lastPathComponent).framework/\(binaryURLFixed.lastPathComponent)",
             binaryURL.path
         ]
         process.launch()
@@ -139,7 +150,7 @@ public struct Framework {
             guard FileManager.default.fileExists(atPath: file.path, isDirectory: &isDir) else {
                 continue
             }
-            if file.pathExtension == "h" || file.pathExtension == "hpp" || file.pathExtension == "hh" {
+            if file.pathExtension == "h" || file.pathExtension == "hpp" || file.pathExtension == "hh" || file.pathExtension == "inc" {
                 let destFile = dest.appendingPathComponent(file.lastPathComponent)
                 if !FileManager.default.fileExists(atPath: destFile.path) {
                     try FileManager.default.copyItem(at: file, to: destFile)
@@ -179,13 +190,18 @@ public struct Framework {
             exit(1)
         }
 
-        let plainName = binaryURL.deletingPathExtension().lastPathComponent
+        var binaryURLFixed = binaryURL
+        if binaryURLFixed.lastPathComponent.hasSuffix(".merged.dylib") {
+            binaryURLFixed.deletePathExtension()
+            binaryURLFixed.deletePathExtension()
+        }
+        let plainName = binaryURLFixed.deletingPathExtension().lastPathComponent
                                     .replacingOccurrences(of: "_", with: "")
                                     .replacingOccurrences(of: "-", with: "")
                                     .replacingOccurrences(of: " ", with: "")
                                     .replacingOccurrences(of: ".", with: "")
 
-        let binaryName = Self.frameworkify(binaryURL)
+        let binaryName = Self.frameworkify(binaryURLFixed)
 
         print("Creating \(binaryName).framework for \(sdkName?.rawValue ?? "unknown platform")...")
 
