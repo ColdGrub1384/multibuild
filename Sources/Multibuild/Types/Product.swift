@@ -20,11 +20,16 @@ public struct Product {
         /// A framework bundle. Ignored on non Apple targets.
         /// (Automatically produces frameworks for Apple targets)
         case framework
+
+        /// Standalone resource content.
+        case resource
         
         /// Python wheel.
         case wheel
     }
 
+    /// Targets which the product is available for. ´nil´ means all targets.
+    public var targets: [Target]?
 
     /// Name of the hypothetical dynamic libraries created from static archives.
     public var binaryName: String?
@@ -44,24 +49,32 @@ public struct Product {
     /// Path of resources to package alonside the binary..
     public var resources: [String]
 
+    /// Dictionary of "LC_LOAD_DYLIB" entries to replace with other values.
+    /// This is done automatically for dynamic libraries that are already created by the build system when it links to libraries of the same project.
+    public var replaceDynamicLibraries: [String:String]
+
     /// Kind of binary.
     public var kind: Kind
 
-    internal init(filePaths: [String], binaryName: String? = nil, installName: String? = nil, includePath: String?, resources: [String] = [], kind: Kind) {
+    internal init(targets: [Target]?, filePaths: [String], binaryName: String? = nil, installName: String? = nil, includePath: String?, resources: [String] = [], replaceDynamicLibraries: [String:String] = [:], kind: Kind) {
+        self.targets = targets
         self.libraryPaths = filePaths
         self.binaryName = binaryName
         self.installName = installName
         self.includePath = includePath
         self.resources = resources
+        self.replaceDynamicLibraries = replaceDynamicLibraries
         self.kind = kind
     }
 
-    internal init(filePaths: [String], binaryName: String? = nil, installName: String? = nil, headers: [String]?, resources: [String] = [], kind: Kind) {
+    internal init(targets: [Target]?, filePaths: [String], binaryName: String? = nil, installName: String? = nil, headers: [String]?, resources: [String] = [], replaceDynamicLibraries: [String:String] = [:], kind: Kind) {
+        self.targets = targets
         self.libraryPaths = filePaths
         self.binaryName = binaryName
         self.installName = installName
         self.headers = headers
         self.resources = resources
+        self.replaceDynamicLibraries = replaceDynamicLibraries
         self.kind = kind
     }
 
@@ -69,29 +82,32 @@ public struct Product {
     /// 
     /// - Parameters: 
     ///     - path: Path of the binary relative to the build directory.
+    ///     - targets: Targets which the product is available for. ´nil´ means all targets.
     ///     - resources: Path of resources to package alongside the binary relative to the build directory.
-    public static func staticArchive(_ path: String, resources: [String] = []) -> Product {
-        return Product(filePaths: [path], includePath: nil, resources: resources, kind: .staticArchive(mergeIntoDylib: false, additionalLinkerFlags: nil))
+    public static func staticArchive(_ path: String, targets: [Target]? = nil, resources: [String] = []) -> Product {
+        return Product(targets: targets, filePaths: [path], includePath: nil, resources: resources, kind: .staticArchive(mergeIntoDylib: false, additionalLinkerFlags: nil))
     }
 
     /// A static archive.
     /// 
     /// - Parameters: 
     ///     - path: Path of the binary relative to the build directory.
+    ///     - targets: Targets which the product is available for. ´nil´ means all targets.
     ///     - includePath: Path of directory containing headers.
     ///     - resources: Path of resources to package alongside the binary relative to the build directory.
-    public static func staticArchive(_ path: String, includePath: String?, resources: [String] = []) -> Product {
-        return Product(filePaths: [path], includePath: includePath, resources: resources, kind: .staticArchive(mergeIntoDylib: false, additionalLinkerFlags: nil))
+    public static func staticArchive(_ path: String, targets: [Target]? = nil, includePath: String?, resources: [String] = []) -> Product {
+        return Product(targets: targets, filePaths: [path], includePath: includePath, resources: resources, kind: .staticArchive(mergeIntoDylib: false, additionalLinkerFlags: nil))
     }
 
     /// A static archive.
     /// 
     /// - Parameters: 
     ///     - path: Path of the binary relative to the build directory.
+    ///     - targets: Targets which the product is available for. ´nil´ means all targets.
     ///     - headers: List of header file paths.
     ///     - resources: Path of resources to package alongside the binary relative to the build directory.
-    public static func staticArchive(_ path: String, headers: [String]?, resources: [String] = []) -> Product {
-        return Product(filePaths: [path], headers: headers, resources: resources, kind: .staticArchive(mergeIntoDylib: false, additionalLinkerFlags: nil))
+    public static func staticArchive(_ path: String, targets: [Target]? = nil, headers: [String]?, resources: [String] = []) -> Product {
+        return Product(targets: targets, filePaths: [path], headers: headers, resources: resources, kind: .staticArchive(mergeIntoDylib: false, additionalLinkerFlags: nil))
     }
 
 
@@ -100,10 +116,12 @@ public struct Product {
     /// 
     /// - Parameters: 
     ///     - path: Path of the binary relative to the build directory.
+    ///     - targets: Targets which the product is available for. ´nil´ means all targets.
     ///     - installName: Overriden  install name of a dynamic library.
     ///     - resources: Path of resources to package alongside the binary relative to the build directory.
-    public static func dynamicLibrary(_ path: String, installName: String? = nil, resources: [String] = []) -> Product {
-        return Product(filePaths: [path], installName: installName, includePath: nil, resources: resources, kind: .dynamicLibrary)
+    ///     - replaceDynamicLibraries: Dictionary of "LC_LOAD_DYLIB" entries to replace with other values.
+    public static func dynamicLibrary(_ path: String, targets: [Target]? = nil, installName: String? = nil, resources: [String] = [], replaceDynamicLibraries: [String:String] = [:]) -> Product {
+        return Product(targets: targets, filePaths: [path], installName: installName, includePath: nil, resources: resources, replaceDynamicLibraries: replaceDynamicLibraries, kind: .dynamicLibrary)
     }
 
 
@@ -112,11 +130,13 @@ public struct Product {
     /// 
     /// - Parameters: 
     ///     - path: Path of the binary relative to the build directory.
+    ///     - targets: Targets which the product is available for. ´nil´ means all targets.
     ///     - installName: Overriden  install name of a dynamic library.
     ///     - includePath: List of header file paths.
     ///     - resources: Path of resources to package alongside the binary relative to the build directory.
-    public static func dynamicLibrary(_ path: String, installName: String? = nil, includePath: String?, resources: [String] = []) -> Product {
-        return Product(filePaths: [path], installName: installName, includePath: includePath, resources: resources, kind: .dynamicLibrary)
+    ///     - replaceDynamicLibraries: Dictionary of "LC_LOAD_DYLIB" entries to replace with other values.
+    public static func dynamicLibrary(_ path: String, targets: [Target]? = nil, installName: String? = nil, includePath: String?, resources: [String] = [], replaceDynamicLibraries: [String:String] = [:]) -> Product {
+        return Product(targets: targets, filePaths: [path], installName: installName, includePath: includePath, resources: resources, replaceDynamicLibraries: replaceDynamicLibraries, kind: .dynamicLibrary)
     }
 
     /// A dynamic library.
@@ -124,11 +144,13 @@ public struct Product {
     /// 
     /// - Parameters: 
     ///     - path: Path of the binary relative to the build directory.
+    ///     - targets: Targets which the product is available for. ´nil´ means all targets.
     ///     - installName: Overriden  install name of a dynamic library.
     ///     - headers: List of header file paths.
     ///     - resources: Path of resources to package alongside the binary relative to the build directory.
-    public static func dynamicLibrary(_ path: String, installName: String? = nil, headers: [String]?, resources: [String] = []) -> Product {
-        return Product(filePaths: [path], installName: installName, headers: headers, resources: resources, kind: .dynamicLibrary)
+    ///     - replaceDynamicLibraries: Dictionary of "LC_LOAD_DYLIB" entries to replace with other values.
+    public static func dynamicLibrary(_ path: String, targets: [Target]? = nil, installName: String? = nil, headers: [String]?, resources: [String] = [], replaceDynamicLibraries: [String:String] = [:]) -> Product {
+        return Product(targets: targets, filePaths: [path], installName: installName, headers: headers, resources: resources, replaceDynamicLibraries: replaceDynamicLibraries, kind: .dynamicLibrary)
     }
 
 
@@ -138,17 +160,21 @@ public struct Product {
     /// - Parameters: 
     ///     - staticArchives: Path of static archives relative to the build directory.
     ///     - objectFiles: Path of object files relative to the build directory.
+    ///     - targets: Targets which the product is available for. ´nil´ means all targets.
     ///     - binaryName: Custom name for the outputted library. If `nil`, will use the project's name.
     ///     - installName: Overriden  install name of a dynamic library.
     ///     - additionalLinkerFlags: Arguments passed to the linker. Can reference paths relative to the build directory.
     ///     - resources: Path of resources to package alongside the binary relative to the build directory.
+    ///     - replaceDynamicLibraries: Dictionary of "LC_LOAD_DYLIB" entries to replace with other values.
     public static func dynamicLibrary(staticArchives: [String] = [],
                                       objectFiles: [String] = [],
+                                      targets: [Target]? = nil,
                                       binaryName: String? = nil,
                                       installName: String? = nil,
                                       additionalLinkerFlags: ((Target) -> ([String]))? = nil,
-                                      resources: [String] = []) -> Product {
-        return Product(filePaths: staticArchives+objectFiles, binaryName: binaryName, installName: installName, includePath: nil, resources: resources, kind: .staticArchive(mergeIntoDylib: true, additionalLinkerFlags: additionalLinkerFlags))
+                                      resources: [String] = [],
+                                      replaceDynamicLibraries: [String:String] = [:]) -> Product {
+        return Product(targets: targets, filePaths: staticArchives+objectFiles, binaryName: binaryName, installName: installName, includePath: nil, resources: resources, replaceDynamicLibraries: replaceDynamicLibraries, kind: .staticArchive(mergeIntoDylib: true, additionalLinkerFlags: additionalLinkerFlags))
     }
 
     /// A dynamic library merged from multiple static archives and object files post compilation.
@@ -157,19 +183,23 @@ public struct Product {
     /// - Parameters: 
     ///     - staticArchives: Path of static archives relative to the build directory.
     ///     - objectFiles: Path of object files relative to the build directory.
+    ///     - targets: Targets which the product is available for. ´nil´ means all targets.
     ///     - binaryName: Custom name for the outputted library. If `nil`, will use the project's name.
     ///     - installName: Overriden  install name of a dynamic library.
     ///     - includePath: Path of directory containing header files.
     ///     - additionalLinkerFlags: Arguments passed to the linker. Can reference paths relative to the build directory.
     ///     - resources: Path of resources to package alongside the binary relative to the build directory.
+    ///     - replaceDynamicLibraries: Dictionary of "LC_LOAD_DYLIB" entries to replace with other values.
     public static func dynamicLibrary(staticArchives: [String] = [],
                                       objectFiles: [String] = [],
+                                      targets: [Target]? = nil,
                                       binaryName: String? = nil,
                                       installName: String? = nil,
                                       includePath: String? = nil,
                                       additionalLinkerFlags: ((Target) -> ([String]))? = nil,
-                                      resources: [String] = []) -> Product {
-        return Product(filePaths: staticArchives+objectFiles, binaryName: binaryName, installName: installName, includePath: includePath, resources: resources, kind: .staticArchive(mergeIntoDylib: true, additionalLinkerFlags: additionalLinkerFlags))
+                                      resources: [String] = [],
+                                      replaceDynamicLibraries: [String:String] = [:]) -> Product {
+        return Product(targets: targets, filePaths: staticArchives+objectFiles, binaryName: binaryName, installName: installName, includePath: includePath, resources: resources, replaceDynamicLibraries: replaceDynamicLibraries, kind: .staticArchive(mergeIntoDylib: true, additionalLinkerFlags: additionalLinkerFlags))
     }
 
     /// A dynamic library merged from multiple static archives and object files post compilation.
@@ -178,30 +208,50 @@ public struct Product {
     /// - Parameters: 
     ///     - staticArchives: Path of static archives relative to the build directory.
     ///     - objectFiles: Path of object files relative to the build directory.
+    ///     - targets: Targets which the product is available for. ´nil´ means all targets.
     ///     - binaryName: Custom name for the outputted library. If `nil`, will use the project's name.
     ///     - installName: Overriden  install name of a dynamic library.
     ///     - headers: List of header file paths.
     ///     - additionalLinkerFlags: Arguments passed to the linker. Can reference paths relative to the build directory.
     ///     - resources: Path of resources to package alongside the binary relative to the build directory.
-    public static func dynamicLibrary(staticArchives: [String] = [], objectFiles: [String] = [], binaryName: String? = nil, installName: String? = nil, headers: [String]?, additionalLinkerFlags: ((Target) -> ([String]))? = nil, resources: [String] = []) -> Product {
-        return Product(filePaths: staticArchives+objectFiles, binaryName: binaryName, installName: installName, headers: headers, resources: resources, kind: .staticArchive(mergeIntoDylib: true, additionalLinkerFlags: additionalLinkerFlags))
+    ///     - replaceDynamicLibraries: Dictionary of "LC_LOAD_DYLIB" entries to replace with other values.
+    public static func dynamicLibrary(staticArchives: [String] = [],
+                                      objectFiles: [String] = [],
+                                      targets: [Target]? = nil,
+                                      binaryName: String? = nil,
+                                      installName: String? = nil,
+                                      headers: [String]?,
+                                      additionalLinkerFlags: ((Target) -> ([String]))? = nil,
+                                      resources: [String] = [],
+                                      replaceDynamicLibraries: [String:String] = [:]) -> Product {
+        return Product(targets: targets, filePaths: staticArchives+objectFiles, binaryName: binaryName, installName: installName, headers: headers, resources: resources, replaceDynamicLibraries: replaceDynamicLibraries, kind: .staticArchive(mergeIntoDylib: true, additionalLinkerFlags: additionalLinkerFlags))
     }
 
     /// Framework bundle. Ignored on non Apple targets.
-    /// (Automatically produces frameworks for Apple targets)
     /// 
     /// - Parameters:
     ///     - path: Path of the framework.
-    public static func framework(_ path: String) -> Product {
-        Product(filePaths: [path], binaryName: nil, headers: nil, kind: .framework)
+    ///     - targets: Targets which the product is available for. ´nil´ means all targets.
+    ///     - replaceDynamicLibraries: Dictionary of "LC_LOAD_DYLIB" entries to replace with other values.
+    public static func framework(_ path: String, targets: [Target]? = nil, replaceDynamicLibraries: [String:String] = [:]) -> Product {
+        Product(targets: targets, filePaths: [path], binaryName: nil, headers: nil, replaceDynamicLibraries: replaceDynamicLibraries, kind: .framework)
     }
     
+    /// A standalone resource.
+    ///
+    /// - Parameters:
+    ///     - path: Path of the resource relative to the build directory.
+    public static func resource(_ path: String) -> Product {
+        Product(targets: nil, filePaths: [path], binaryName: nil, headers: nil, kind: .resource)
+    }
+
     /// A Python wheel.
     /// It doesn't need to be declared if you use the ``Python`` builder.
     ///
     /// - Parameters:
     ///     - path: Path of the wheel.
-    public static func wheel(_ path: String) -> Product {
-        Product(filePaths: [path], binaryName: nil, headers: nil, kind: .wheel)
+    ///     - targets: Targets which the product is available for. ´nil´ means all targets.
+    public static func wheel(_ path: String, targets: [Target]? = nil) -> Product {
+        Product(targets: targets, filePaths: [path], binaryName: nil, headers: nil, kind: .wheel)
     }
 }

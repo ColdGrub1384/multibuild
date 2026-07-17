@@ -303,6 +303,7 @@ public struct Build {
                         try FileManager.default.removeItem(at: universalFrameworkURL)
                     }
                     try FileManager.default.copyItem(at: baseFramework, to: universalFrameworkURL)
+                    mergeSwiftModules(from: urls, to: universalFrameworkURL)
                 }
 
                 lipo.launch()
@@ -326,15 +327,16 @@ public struct Build {
         urls = newURLs
     }
 
-    /// Creates an Apple only Swift Package archive from Xcode Frameworks included as `binaryTarget`s.
+    /// Creates an Apple only Swift Package archive from Xcode Frameworks and standalone resources.
     /// 
     /// - Parameters:
     ///     - xcodeFrameworks: URLs of Xcode frameworks to include.
+    ///     - resources: Resource URLs to embed into the generated Swift package.
     /// 
     /// - Returns: URL of the generated archive.
-    public func createSwiftPackage(xcodeFrameworks: [URL]) throws -> URL? {
+    public func createSwiftPackage(xcodeFrameworks: [URL], resources: [URL] = []) throws -> URL? {
 
-        guard let appleUniversalBuildDirectoryURL else {
+        guard let appleUniversalBuildDirectoryURL, !xcodeFrameworks.isEmpty || !resources.isEmpty else {
             return nil
         }
 
@@ -349,15 +351,31 @@ public struct Build {
         }
 
         let targets = xcodeFrameworks.map({ $0.deletingPathExtension().lastPathComponent })
-        var binaryTargets = ""
+        let resourceTargetName = "Resources"
+        var manifestTargets = [String]()
         for target in targets {
-            binaryTargets += """
+            manifestTargets.append("""
                     .binaryTarget(
                         name: "\(target)",
-                        path: "\(target).xcframework"),\n
-            """
+                        path: "\(target).xcframework")
+            """)
         }
 
+        if !resources.isEmpty {
+            let resourceEntries = resources.map { resource in
+                ".copy(\"\(resource.lastPathComponent.replacingOccurrences(of: "\"", with: "\\\""))\")"
+            }
+            manifestTargets.append("""
+                    .target(
+                        name: "\(resourceTargetName)",
+                        resources: [
+                            \(resourceEntries.joined(separator: ",\n                "))
+                        ]
+                    )
+            """)
+        }
+
+        let packageTargets = targets + (resources.isEmpty ? [] : [resourceTargetName])
         let packageManifest = """
         // swift-tools-version:5.7
         import PackageDescription
@@ -368,13 +386,13 @@ public struct Build {
                 .library(
                     name: "\(shortPackageName)",
                     targets: [
-                        \(targets.map({ "\"\($0)\"" }).joined(separator: ", "))
+                        \(packageTargets.map({ "\"\($0)\"" }).joined(separator: ", "))
                     ]
                 )
             ],
             dependencies: [],
             targets: [
-        \(binaryTargets)
+        \(manifestTargets.joined(separator: ",\n"))
             ]
         )
         """
@@ -393,6 +411,17 @@ public struct Build {
         
         for framework in xcodeFrameworks {
             try FileManager.default.copyItem(at: framework, to: packageDir.appendingPathComponent(framework.lastPathComponent))
+        }
+
+        if resources.count > 0 {
+            let resourcesDir = packageDir.appendingPathComponent("Sources/Resources")
+            if !FileManager.default.fileExists(atPath: resourcesDir.path) {
+                try FileManager.default.createDirectory(at: resourcesDir, withIntermediateDirectories: true)
+            }
+            try "// empty source\n".write(to: resourcesDir.appendingPathComponent("Resources.swift"), atomically: true, encoding: .utf8)
+            for resource in resources {
+                try FileManager.default.copyItem(at: resource, to: resourcesDir.appendingPathComponent(resource.lastPathComponent))
+            }
         }
 
         let archiveSource = Process()
@@ -419,6 +448,69 @@ public struct Build {
         return archiveURL
     }
 
+    private func replaceLinkedDylibs(url dylibURL: URL, customReplaceLibs: [String:String]) throws {
+        let output = Pipe()
+        let otool = Process()
+        otool.executableURL = URL(fileURLWithPath: "/usr/bin/otool")
+        otool.arguments = ["-l", dylibURL.path]
+        otool.standardOutput = output
+        otool.launch()
+
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        otool.waitUntilExit()
+
+        var replaceDylibs = [(String, String)]()
+
+        if otool.terminationStatus != 0 {
+            return
+        } else if let string = String(data: data, encoding: .utf8) {
+            for line in string.components(separatedBy: "\n") {
+                if line.contains("name @rpath/") && line.contains(".dylib") {
+                    for dylibPath in line.components(separatedBy: " ") {
+                        if dylibPath.hasPrefix("@rpath") && dylibPath.hasSuffix(".dylib") {
+                            let dylibName = dylibPath.components(separatedBy: "/").last ?? dylibPath
+                            if let lib = customReplaceLibs[dylibName] {
+                                replaceDylibs.append((dylibPath, lib))
+                            } else {
+                                for product in products {
+                                    if case .dynamicLibrary = product.kind, let libName = product.libraryPaths.first?.components(separatedBy: "/").last {
+
+                                        guard libName == dylibName else {
+                                            continue
+                                        }
+
+                                        let frameworkName = Framework.frameworkify(buildRootDirectory.appendingPathComponent(libName))
+                                        let frameworkPath = "@rpath/\(frameworkName).framework/\(frameworkName)"
+                                        replaceDylibs.append((dylibPath, frameworkPath))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        for lib in replaceDylibs {
+            var libPath = lib.1
+            if !libPath.hasPrefix("@rpath/") {
+                libPath = "@rpath/\(libPath)"
+            }
+
+            let installNameTool = Process()
+            installNameTool.executableURL = URL(fileURLWithPath: "/usr/bin/install_name_tool")
+            installNameTool.arguments = [
+                dylibURL.path,
+                "-change", lib.0, libPath
+            ]
+            installNameTool.launch()
+            installNameTool.waitUntilExit()
+            if installNameTool.terminationStatus != 0 {
+                throw MergeError(programName: "install_name_tool", arguments: installNameTool.arguments ?? [], exitCode: Int(installNameTool.terminationStatus))
+            }
+        }
+    }
+
     /// Creates a Xcode frameworks with all of the compiled platforms and a zipped Swift package.
     /// Fails if no product is found targetting an Apple SDK.
     /// 
@@ -427,6 +519,7 @@ public struct Build {
     /// 
     /// - Returns an URL of Xcode frameworks.
     public func createXcodeFrameworks(bundleIdentifierPrefix: String) throws -> [URL] {
+
         var targetsToMerge = [Target]()
         for (target, _) in buildDirs {
             if target.isApple {
@@ -490,6 +583,10 @@ public struct Build {
             }
             for (target, directory) in buildDirs {
                 
+                guard dylib.targets == nil || dylib.targets!.contains(target) else {
+                    continue
+                }
+
                 if !dylibFrameworks.contains(where: { $0.key == target }) {
                     dylibFrameworks[target] = []
                 }
@@ -497,67 +594,14 @@ public struct Build {
                 let dylibURL = directory.appendingPathComponent(libPath).resolvingSymlinksInPath()
                 
                 guard FileManager.default.fileExists(atPath: dylibURL.path) else {
-                    print("Skipping \(dylibURL.lastPathComponent) as it does not exist for \(target)", to: &StandardError)
+                    print("Warning: Skipping \(dylibURL.lastPathComponent) as it does not exist for \(target)", to: &StandardError)
                     continue
                 }
                 
                 let includeURL = dylib.includePath == nil ? nil : directory.appendingPathComponent(dylib.includePath!)
                 let headersURLs = dylib.headers == nil ? nil : dylib.headers!.map({ directory.appendingPathComponent($0) })
 
-                // replace lc_load_dylib
-                do {
-                    let output = Pipe()
-                    let otool = Process()
-                    otool.executableURL = URL(fileURLWithPath: "/usr/bin/otool")
-                    otool.arguments = ["-l", dylibURL.path]
-                    otool.standardOutput = output
-                    otool.launch()
-
-                    let data = output.fileHandleForReading.readDataToEndOfFile()
-                    otool.waitUntilExit()
-
-                    var replaceDylibs = [(String, String)]()
-
-                    if otool.terminationStatus != 0 {
-                        continue
-                    } else if let string = String(data: data, encoding: .utf8) {
-                        for line in string.components(separatedBy: "\n") {
-                            if line.contains("name @rpath/") && line.contains(".dylib") {
-                                for dylibPath in line.components(separatedBy: " ") {
-                                    if dylibPath.hasPrefix("@rpath") && dylibPath.hasSuffix(".dylib") {
-                                        let dylibName = dylibPath.components(separatedBy: "/").last ?? dylibPath
-                                        for product in products {
-                                            if case .dynamicLibrary = product.kind, let libName = product.libraryPaths.first?.components(separatedBy: "/").last {
-                                                
-                                                guard libName == dylibName else {
-                                                    continue
-                                                }
-                                                
-                                                let frameworkName = Framework.frameworkify(buildRootDirectory.appendingPathComponent(libName))
-                                                let frameworkPath = "@rpath/\(frameworkName).framework/\(frameworkName)"
-                                                replaceDylibs.append((dylibPath, frameworkPath))
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    for lib in replaceDylibs {
-                        let installNameTool = Process()
-                        installNameTool.executableURL = URL(fileURLWithPath: "/usr/bin/install_name_tool")
-                        installNameTool.arguments = [
-                            dylibURL.path,
-                            "-change", lib.0, lib.1
-                        ]
-                        installNameTool.launch()
-                        installNameTool.waitUntilExit()
-                        if installNameTool.terminationStatus != 0 {
-                            throw MergeError(programName: "install_name_tool", arguments: installNameTool.arguments ?? [], exitCode: Int(installNameTool.terminationStatus))
-                        }
-                    }
-                }
+                try replaceLinkedDylibs(url: dylibURL, customReplaceLibs: dylib.replaceDynamicLibraries)
 
                 let framework = Framework(binaryURL: dylibURL,
                                           version: versionString ?? "1.0",
@@ -575,6 +619,10 @@ public struct Build {
         if staticArchivesToMergeIntoOneDylib.count > 0 {
             for (target, directory) in buildDirs {
                 for (binaryName, staticArchives) in staticArchivesToMergeIntoOneDylib {
+                    guard staticArchives.filter({ $0.targets == nil || $0.targets!.contains(target) }).count == staticArchives.count else {
+                        continue
+                    }
+
                     let libraryMainURL = directory.appendingPathComponent("_library_main.c")
                     try "int _library_main() { return 0; }".write(to: libraryMainURL, atomically: false, encoding: .utf8)
 
@@ -638,19 +686,28 @@ public struct Build {
                         process.arguments!.append(contentsOf: ["-arch", arch.rawValue])
                     }
 
+                    let binURL = directory.appendingPathComponent(binaryName).appendingPathExtension("merged.dylib")
+
                     var includeURLs = [URL]()
                     var headersURLs = [URL]()
                     var resourcesURLs = [URL]()
                     for staticArchive in staticArchives {
                         for libPath in staticArchive.libraryPaths {
-                            let path = directory.appendingPathComponent(libPath).resolvingSymlinksInPath().path
+                            let fullPath = directory.appendingPathComponent(libPath).resolvingSymlinksInPath().path
+ 
+                            // Check if the path exists
+                            if !FileManager.default.fileExists(atPath: fullPath) {
+                                print("Warning: Skipping \(libPath) as it does not exist for target \(target.systemName.rawValue).\(target.architectures.map { $0.rawValue }.joined(separator: "-"))", to: &StandardError)
+                                continue
+                            }
+
                             if libPath.lowercased().hasSuffix(".a") {
                                 process.arguments!.append(contentsOf: [
                                     "-force_load",
-                                    path
+                                    fullPath
                                 ])
                             } else {
-                                process.arguments!.append(path)
+                                process.arguments!.append(fullPath)
                             }
                         }
                         for resource in staticArchive.resources {
@@ -675,7 +732,7 @@ public struct Build {
                     process.arguments!.append(contentsOf: [
                             libraryMainURL.path
                         ]+((target.isApple || installName != nil) ? ["-install_name", installName ?? "@rpath/\(binaryName).framework/\(binaryName)"] : [])+[
-                            "-o", directory.appendingPathComponent(binaryName).path
+                            "-o", binURL.path
                         ])
                     process.launch()
                     process.waitUntilExit()
@@ -686,19 +743,27 @@ public struct Build {
 
                     try FileManager.default.removeItem(at: libraryMainURL)
 
-                    let framework = Framework(binaryURL: directory.appendingPathComponent(binaryName), version: versionString ?? "1.0", installName: installName, includeURLs: includeURLs, headersURLs: headersURLs, resourcesURLs: resourcesURLs, bundleIdentifierPrefix: bundleIdentifierPrefix)
+                    var replace = [String:String]()
+                    for archive in staticArchives {
+                        for lib in archive.replaceDynamicLibraries {
+                            replace[lib.key] = lib.value
+                        }
+                    }
+                    try replaceLinkedDylibs(url: binURL, customReplaceLibs: replace)
+
+                    let framework = Framework(binaryURL: binURL, version: versionString ?? "1.0", installName: installName, includeURLs: includeURLs, headersURLs: headersURLs, resourcesURLs: resourcesURLs, bundleIdentifierPrefix: bundleIdentifierPrefix)
                     if staticArchiveFrameworks[binaryName] == nil {
                         staticArchiveFrameworks[binaryName] = [try framework.write(to: directory)]
                     } else {
                         staticArchiveFrameworks[binaryName]?.append(try framework.write(to: directory))
                     }
-                    try FileManager.default.removeItem(at: directory.appendingPathComponent(binaryName))
+                    try FileManager.default.removeItem(at: directory.appendingPathComponent(binaryName).appendingPathExtension("merged.dylib"))
                 }
             }
         }
 
         // -- Create Xcode frameworks --
-        
+
         var xcframeworks = [URL]()
         if dylibFrameworks.count > 0 {
             var allFrameworks = [String:[URL]]() // group frameworks by name
@@ -816,8 +881,16 @@ public struct Build {
             var librariesArgs = [String]()
             var libraries = [URL]()
 
-            for (_, directory) in buildDirs {
-                libraries.append(directory.appendingPathComponent(libPath))
+            for (target, directory) in buildDirs {
+                guard staticArchive.targets == nil || staticArchive.targets!.contains(target) else {
+                    continue
+                }
+                let libURL = directory.appendingPathComponent(libPath)
+                if !FileManager.default.fileExists(atPath: libURL.path) {
+                    print("Warning: Skipping \(libPath) as it does not exist for target \(target.systemName.rawValue).\(target.architectures.map { $0.rawValue }.joined(separator: "-"))", to: &StandardError)
+                    continue
+                }
+                libraries.append(libURL)
             }
             try merge(urls: &libraries)
 
