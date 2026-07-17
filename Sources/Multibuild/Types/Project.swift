@@ -128,6 +128,11 @@ public struct Project {
     
     internal init(projects: [Project]) {
         self.dependencies = projects.map({ Dependency.project($0) })
+        for project in projects {
+            if let directoryURL = project.directoryURL {
+                ProjectNames[directoryURL.lastPathComponent] = project
+            }
+        }
     }
 
     /// Initializes a project.
