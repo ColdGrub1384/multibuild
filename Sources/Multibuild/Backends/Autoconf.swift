@@ -72,11 +72,11 @@ public struct Autoconf: Builder {
         for target in makeTargets ?? [] {
             makeCall += "make \(target) LDFLAGS=\"$LDFLAGS\"\n"
         }
-
+        
         return """
         PROJECT_DIR="$PWD"
-        mkdir -p "\(outputDirectoryPath(for: target))"
-        cd "\(outputDirectoryPath(for: target))"
+        mkdir -p "\(self.outputDirectoryPath(for: target))"
+        cd "\(self.outputDirectoryPath(for: target))"
         export CC="iosxcrun --sdk $SDK_NAME clang -target $TARGET_TRIPLE" 
         export CXX="iosxcrun --sdk $SDK_NAME clang -target $TARGET_TRIPLE"
         export LD="$(which ld) -target $TARGET_TRIPLE"
@@ -86,21 +86,27 @@ public struct Autoconf: Builder {
         export LDFLAGS="-isysroot $SDK -target $TARGET_TRIPLE \(flags)"
         export PREFIX="$PWD/../../build/$PLATFORM.$ARCHITECTURE"
 
-        if [ -f "$PROJECT_DIR/autogen.sh" ]; then
-            "$PROJECT_DIR/autogen.sh" --disable-dependency-tracking -target $TARGET_TRIPLE
-        fi
-
         configure_path=""
         if [ -f "$PROJECT_DIR/Configure" ]; then
             configure_path="$PROJECT_DIR/Configure"
         elif [ -f "$PROJECT_DIR/configure" ]; then
             configure_path="$PROJECT_DIR/configure"
+        elif [ -f "$PROJECT_DIR/autogen.sh" ]; then
+            pushd "$PROJECT_DIR"
+            "./autogen.sh" --disable-dependency-tracking -target $TARGET_TRIPLE
+            popd
+
+            if [ -f "$PROJECT_DIR/Configure" ]; then
+                configure_path="$PROJECT_DIR/Configure"
+            elif [ -f "$PROJECT_DIR/configure" ]; then
+                configure_path="$PROJECT_DIR/configure"
+            fi
         fi
 
         if [ -f "Makefile" ] && [ "\(forceConfigure)" = "false" ]; then
              \(makeCall)
         else
-            $configure_path \(arguments) --prefix="$PWD/../../build/$PLATFORM.$ARCHITECTURE" CC="$CC" \
+            \(!(configureArguments?(target).contains(where: { $0.hasPrefix("--prefix") }) ?? false) ? "$configure_path \(arguments) --prefix=\"$(realpath \"$PWD/../../build/$PLATFORM.$ARCHITECTURE\")\" CC=\"$CC\"" : "$configure_path \(arguments)") \
             CXX="$CXX" \
             CPP="$CPP" \
             LD="$LD" \
