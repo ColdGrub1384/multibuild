@@ -297,8 +297,34 @@ CARGO_SETUP() {
     find . -name "Cargo.toml" -exec cp "{}" "{}.bak" \;
     find . -name "Cargo.toml" -exec bash -c '(cat {}.bak | insert_patched_pyo3.py) > {}' \;
 
+    # Use target specific environment variables
+    # This prevents build scripts from being compiled for the target
+    # We uppercase the triple and replace hyphens with underscores as expected by Cargo
+    TARGET_TRIPLE_VAR=$(echo "$CARGO_BUILD_TARGET" | tr '[:lower:]-' '[:upper:]_')
+    export "CC_$TARGET_TRIPLE_VAR"="$CC"
+    export "CXX_$TARGET_TRIPLE_VAR"="$CXX"
+    export "CFLAGS_$TARGET_TRIPLE_VAR"="$CFLAGS"
+    export "CXXFLAGS_$TARGET_TRIPLE_VAR"="$CXXFLAGS"
+    export "LDFLAGS_$TARGET_TRIPLE_VAR"="$LDFLAGS"
+    export "AR_$TARGET_TRIPLE_VAR"="$AR"
+
+    # Unset global environment variables that interfere with host build scripts
+    unset CC
+    unset CXX
+    unset CFLAGS
+    unset CXXFLAGS
+    unset LDFLAGS
+    unset AR
+    unset CPPFLAGS
+    unset CPP
+    unset SDK_NAME
+    unset SDK
+    unset IPHONEOS_DEPLOYMENT_TARGET
+    unset TVOS_DEPLOYMENT_TARGET
+    unset WATCHOS_DEPLOYMENT_TARGET
+
     # Build std
-    find . -name "Cargo.toml" -exec bash -c 'cd "$(dirname "{}")" && cargo +nightly build --target "$CARGO_TARGET_CONFIG" -Zbuild-std' \;
+    find . -name "Cargo.toml" -exec bash -c 'cd "$(dirname "{}")" && cargo +nightly build --target "$CARGO_TARGET_CONFIG" -Zbuild-std -Zjson-target-spec' \;
 
     # failed to read directory <site-directory>/build-details.json: Not a directory (os error 20)
     # you got to be fucking kidding me
@@ -324,15 +350,34 @@ RUST_BUILD() {
 export -f RUST_BUILD
 
 MATURIN_BUILD() {
+    # Ensure LDFLAGS has the framework flags
+    LINKER_FLAGS="${PYTHON_LINK//,/ }"
+    export LDFLAGS="$LDFLAGS $LINKER_FLAGS"
+
     CARGO_SETUP
 
+    export PYO3_NO_PYTHON=1
+    export PYO3_CROSS_LIB_DIR="$PYTHON_TARGET_PATH"
+    export PYO3_PYTHON="$TOOLS_DIR/python3"
+    export PYTHON_SYS_EXECUTABLE="$PYO3_PYTHON"
+    export RUSTUP_TOOLCHAIN=nightly
+    export CARGO_TARGET_CONFIG="$TOOLS_DIR/cargo_toolchain/$CARGO_BUILD_TARGET.json"
+
     # Install patched maturin
+    _RUSTC_EXECUTABLE=\
+    _CARGO_EXECUTABLE=\
+    PYO3_CROSS_LIB_DIR=\
+    PYTHON_SYS_EXECUTABLE=\
+    RUSTUP_TOOLCHAIN=\
+    CARGO_TARGET_CONFIG=\
+    CARGO_BUILD_TARGET=\
+    _PYTHON_HOST_PLATFORM=\
     python -m pip install git+https://git.gatit.es/pyto/maturin.git@main
 
     # Build
     python -m maturin build -v --interpreter "$PYO3_PYTHON" "$@" \
     --release --target "$CARGO_BUILD_TARGET" \
-    -Zbuild-std "$@"
+    -Zbuild-std -Zjson-target-spec "$@"
 
     # Restore files
     mv "$PYTHON_TARGET_PATH/_build-details.json" "$PYTHON_TARGET_PATH/build-details.json"
