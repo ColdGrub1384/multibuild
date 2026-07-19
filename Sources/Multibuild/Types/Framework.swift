@@ -243,11 +243,11 @@ public struct Framework {
                 for url in self.headersURLs {
                     try FileManager.default.copyItem(at: url, to: headersURL.appendingPathComponent(url.lastPathComponent))
                 }
-                try FileManager.default.createSymbolicLink(atPath: frameworkURL.appendingPathComponent("Headers").path, withDestinationPath: "Versions/A/Headers")
+                try FileManager.default.createSymbolicLink(atPath: frameworkURL.appendingPathComponent("Headers").path, withDestinationPath: "Versions/Current/Headers")
             }
 
-            try FileManager.default.createSymbolicLink(atPath: frameworkURL.appendingPathComponent(binaryName).path, withDestinationPath: "Versions/A/\(binaryName)")
-            try FileManager.default.createSymbolicLink(atPath: frameworkURL.appendingPathComponent("Resources").path, withDestinationPath: "Versions/A/Resources")
+            try FileManager.default.createSymbolicLink(atPath: frameworkURL.appendingPathComponent(binaryName).path, withDestinationPath: "Versions/Current/\(binaryName)")
+            try FileManager.default.createSymbolicLink(atPath: frameworkURL.appendingPathComponent("Resources").path, withDestinationPath: "Versions/Current/Resources")
             try FileManager.default.createSymbolicLink(atPath: frameworkURL.appendingPathComponent("Versions/Current").path, withDestinationPath: "A")
         } else {
             for resource in resourcesURLs {
