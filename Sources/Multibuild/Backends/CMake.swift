@@ -78,6 +78,13 @@ public struct CMake: Builder {
         let iosxcrun = Bundle.module.path(forResource: "iosxcrun", ofType: nil, inDirectory: "Environment")!
         options["CMAKE_C_COMPILER"] = iosxcrun
         options["CMAKE_CXX_COMPILER"] = iosxcrun
+
+        let linkerFlags = "-target '\(target.triple!)'"
+        var exeLinkerFlags = linkerFlags
+        var staticLinkerFlags = linkerFlags
+        var sharedLinkerFlags = linkerFlags
+        var fortranLinkerFlags = linkerFlags
+
         for option in self.options(target) {
             var value = option.value
             if option.key == "CMAKE_C_FLAGS" || option.key == "CMAKE_CXX_FLAGS" {
@@ -86,13 +93,29 @@ public struct CMake: Builder {
                     archs += "-arch \(arch.rawValue) "
                 }
                 value = "-target \(target.triple!) -isysroot \(target.sdkURL!.path) \(value) \(archs)"
-            }
-            if option.key == "CMAKE_PREFIX_PATH" {
+            } else if option.key == "CMAKE_PREFIX_PATH" {
                 additionalPrefixPath = option.value
+                continue
+            } else if option.key == "CMAKE_EXE_LINKER_FLAGS" {
+                exeLinkerFlags += " \(option.value)"
+                continue
+            } else if option.key == "CMAKE_STATIC_LINKER_FLAGS" {
+                staticLinkerFlags += " \(option.value)"
+                continue
+            } else if option.key == "CMAKE_SHARED_LINKER_FLAGS" {
+                sharedLinkerFlags += " \(option.value)"
+                continue
+            } else if option.key == "CMAKE_FORTRAN_LINKER_FLAGS" {
+                fortranLinkerFlags += " \(option.value)"
                 continue
             }
             options[option.key] = value
         }
+
+        options["CMAKE_EXE_LINKER_FLAGS"] = exeLinkerFlags
+        options["CMAKE_STATIC_LINKER_FLAGS"] = staticLinkerFlags
+        options["CMAKE_SHARED_LINKER_FLAGS"] = sharedLinkerFlags
+        options["CMAKE_Fortran_FLAGS"] = linkerFlags
 
         let buildInvocation = generator.buildProgram(target).map({ "\"\($0.replacingOccurrences(of: "\"", with: "\\\""))\"" }).joined(separator: " ")
 
@@ -103,6 +126,7 @@ public struct CMake: Builder {
         export CPP=
         export CFLAGS=
         export CXXFLAGS=
+        export FFLAGS=
         export LDFLAGS=
 
         if [ -z "\(additionalPrefixPath.replacingOccurrences(of: "\"", with: "\\\""))" ]; then

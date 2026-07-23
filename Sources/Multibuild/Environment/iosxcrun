@@ -46,9 +46,9 @@ for i in range(len(new_args)):
 
 if not has_tool:
     for arg in args:
-        if arg.startswith("-"):
+        if arg.startswith("-") and arg != "-o":
             continue
-        if arg.endswith(".c") or arg.endswith(".cpp") or arg.endswith(".cxx") or arg.endswith(".cc") or arg.endswith(".m") or arg.endswith(".mm") or arg.endswith(".o") or arg.endswith(".a") or arg.endswith(".dylib") or arg.endswith(".so"):
+        if arg.endswith(".c") or arg.endswith(".cpp") or arg.endswith(".cxx") or arg.endswith(".cc") or arg.endswith(".m") or arg.endswith(".mm") or arg.endswith(".o") or arg.endswith(".a") or arg.endswith(".dylib") or arg.endswith(".so") or arg.endswith(".rsp") or arg.startswith("@") or arg == "-o":
             if is_just_c_not_cpp:
                 new_args.append("clang")
             else:
