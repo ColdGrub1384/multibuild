@@ -3,6 +3,7 @@
 import sys
 import os
 import subprocess
+import shlex
 
 args = sys.argv[1:]
 
@@ -92,10 +93,17 @@ for arg in args:
     if arg == "-lgfortran":
         continue
 
-    # I don't know why but something is forcing to link to a "Python" framework even if we already specified another Python framework name
+    # Meson tries to link against the build machine Python
     if arg == "Python" and new_args[-1] == "-framework":
         if "PYTHON_LINK" in os.environ and not arg in os.environ["PYTHON_LINK"].split(" "):
             new_args.pop(-1)
+
+            link_args = shlex.split(os.environ["PYTHON_LINK"])
+            for link_arg in link_args:
+                if link_arg.endswith(","):
+                    link_arg = link_arg[:-1]
+                new_args.append(link_arg)
+
             continue
 
     # astropy fails with unused linker flags
