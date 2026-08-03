@@ -39,7 +39,7 @@ elif [ "$TVOSSDK" = "appletvos" ] || [ "$TVOSSDK" = "appletvsimulator" ]; then #
     export ARCHS="$TVOSARCH"
     export TVOS_DEPLOYMENT_TARGET=13.0
     export MINIMUM_OS_VERSION=13.0
-    export ENDIAN="big"
+    export ENDIAN="little"
 
     if [ "$TVOSARCH" = "arm64" ]; then
         export ARCHITECTURE_RUST="aarch64"
@@ -86,7 +86,7 @@ elif [ "$WATCHOSSDK" = "watchos" ] || [ "$WATCHOSSDK" = "watchsimulator" ]; then
 
     if [ "$WATCHOSARCH" = "arm64" ]; then
         export ARCHITECTURE_RUST="aarch64"
-        export ENDIAN="big"
+        export ENDIAN="little"
         if [ "$WATCHOSSDK" = "watchos" ]; then
             export _PLATFORM=WATCHOS64
         elif [ "$WATCHOSSDK" = "watchsimulator" ]; then
@@ -104,7 +104,7 @@ elif [ "$WATCHOSSDK" = "watchos" ] || [ "$WATCHOSSDK" = "watchsimulator" ]; then
         export _PLATFORM=WATCHOS
     else
         export ARCHITECTURE_RUST="x86_64"
-        export ENDIAN="big"
+        export ENDIAN="little"
         export _PLATFORM=SIMULATOR_WATCHOS
     fi
 
@@ -137,7 +137,7 @@ elif [ "$IOSSDK" = "iphoneos" ] || [ "$IOSSDK" = "iphonesimulator" ]; then      
     export ARCHITECTURE="${IOSARCH// /-}"
     export IPHONEOS_DEPLOYMENT_TARGET=13.0
     export MINIMUM_OS_VERSION=13.0
-    export ENDIAN="big"
+    export ENDIAN="little"
 
     if [ "$IOSARCH" = "arm64" ]; then
         export ARCHITECTURE_RUST="aarch64"
@@ -184,7 +184,7 @@ else                                            # Mac Catalyst
     export MINVERSION_FLAG="-mios-version-min=13.1"
     export XCODEBUILD_ADDITIONAL_FLAGS="-sdk $SDK_NAME PATH='$OLD_PATH' SUPPORTS_MACCATALYST='YES' -destination 'platform=macOS,variant=Mac Catalyst' ARCHS='$MAC_CATALYST' ONLY_ACTIVE_ARCH=NO"
     export TARGET_TRIPLE="$ARCHITECTURE-apple-ios13.1-macabi"
-    export ENDIAN="big"
+    export ENDIAN="little"
     if [ "$MAC_CATALYST" = "arm64" ]; then
         export ARCHITECTURE_RUST="aarch64"
         export _PLATFORM=MAC_CATALYST_ARM64
