@@ -67,6 +67,22 @@ if "PYTHON_CROSS_COMPILING" in os.environ:
     if imported_distutils:
         distutils.sysconfig.get_python_inc = get_python_inc
 
+    # mesonpy skips "_PYTHON_HOST_PLATFORM" for iOS and macOS
+    try:
+        from mesonpy import _tags
+        def get_platform_tag() -> str:
+            platform = sysconfig.get_platform()
+            if _tags._32_BIT_INTERPRETER:
+                # 32-bit Python running on a 64-bit kernel.
+                if platform == 'linux-x86_64':
+                    return 'linux_i686'
+                if platform == 'linux-aarch64':
+                    return 'linux_armv7l'
+            return platform.replace('-', '_').replace('.', '_').lower()
+        _tags.get_platform_tag = get_platform_tag
+    except ImportError:
+        pass
+
 ## Interpreter  ##
 
 _usage = "usage: python [-c cmd | -m mod | file | -] [arg]"
