@@ -19,18 +19,6 @@ if "SDK_NAME" in os.environ:
     if not has_sdk:
         new_args.extend(["--sdk", os.environ["SDK_NAME"]])
 
-# Pick up tool from environment if not passed
-if "IOSXCRUN_TOOL" in os.environ:
-    has_tool = False
-    tools = ["clang", "clang++", "ld", "ar", "libtool", "ranlib", "strip", "install_name_tool", "dsymutil"]
-    for i in range(len(args)):
-        if args[i] in tools:
-            has_tool = True
-            break
-    
-    if not has_tool:
-        new_args.append(os.environ["IOSXCRUN_TOOL"])
-
 is_just_c_not_cpp = True
 for arg in args:
     if arg.endswith(".cpp") or arg.endswith(".cxx") or arg.endswith(".cc"):
@@ -43,6 +31,14 @@ for i in range(len(new_args)):
     if new_args[i] in tools:
         has_tool = True
         break
+
+# Also check original args — the tool may have been passed explicitly (e.g. "ar")
+# but not yet appended to new_args at this point.
+if not has_tool:
+    for arg in args:
+        if arg in tools:
+            has_tool = True
+            break
 
 if not has_tool:
     for arg in args:
