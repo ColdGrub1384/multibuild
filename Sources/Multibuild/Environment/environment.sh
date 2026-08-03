@@ -407,14 +407,9 @@ MESON_BUILD_PYTHON() {
 
     # Build
     export MESON_FORCE_BACKTRACE=1
-    if [ -z "$MAC_CATALYST" ]; then
-        python -m build -n \
-            -Csetup-args="--cross-file=${CROSS_FILE_PYTHON}.temp" \
-            "$@"
-    else
-        # Not cross compiling when building for Mac Catalyst
-        python -m build -n "$@"
-    fi
+    python -m build -n \
+        -Csetup-args="--cross-file=${CROSS_FILE_PYTHON}.temp" \
+        "$@"
     
     rm "$CROSS_FILE_PYTHON.temp"
 }
