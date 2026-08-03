@@ -79,11 +79,10 @@ public struct CMake: Builder {
         options["CMAKE_C_COMPILER"] = iosxcrun
         options["CMAKE_CXX_COMPILER"] = iosxcrun
 
-        let linkerFlags = "-target '\(target.triple!)'"
+        let linkerFlags = "-target '\(target.triple!)' -isysroot '\(target.sdkURL!.path)'"
         var exeLinkerFlags = linkerFlags
         var staticLinkerFlags = linkerFlags
         var sharedLinkerFlags = linkerFlags
-        var fortranLinkerFlags = linkerFlags
 
         for option in self.options(target) {
             var value = option.value
@@ -104,9 +103,6 @@ public struct CMake: Builder {
                 continue
             } else if option.key == "CMAKE_SHARED_LINKER_FLAGS" {
                 sharedLinkerFlags += " \(option.value)"
-                continue
-            } else if option.key == "CMAKE_FORTRAN_LINKER_FLAGS" {
-                fortranLinkerFlags += " \(option.value)"
                 continue
             }
             options[option.key] = value
