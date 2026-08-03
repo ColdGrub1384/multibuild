@@ -1,0 +1,2 @@
+#!/bin/sh
+iosxcrun --sdk $SDK_NAME clang -target x86_64-apple-watchos${WATCHOS_DEPLOYMENT_TARGET}-simulator -E $CPPFLAGS "$@"

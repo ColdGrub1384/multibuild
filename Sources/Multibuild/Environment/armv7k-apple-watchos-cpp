@@ -1,0 +1,2 @@
+#!/bin/sh
+iosxcrun --sdk $SDK_NAME clang -target armv7k-apple-watchos${WATCHOS_DEPLOYMENT_TARGET} -E $CPPFLAGS "$@"

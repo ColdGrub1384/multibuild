@@ -1,0 +1,2 @@
+#!/bin/sh
+iosxcrun --sdk $SDK_NAME ar "$@"

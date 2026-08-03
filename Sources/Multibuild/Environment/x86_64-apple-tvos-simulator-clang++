@@ -1,0 +1,2 @@
+#!/bin/sh
+iosxcrun --sdk $SDK_NAME clang++ -target x86_64-apple-tvos${TVOS_DEPLOYMENT_TARGET}-simulator $CXXFLAGS "$@"
