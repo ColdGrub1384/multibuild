@@ -17,12 +17,13 @@ export PLAIN_VERSION="${VERSION//.}"
 export XCRUN="iosxcrun"
 export TOOLS_DIR="$PWD"
 
-# force using flang as gfortran does not support cross compilation for Apple platforms
 export _PYTHON_EXECUTABLE="$(which "python$VERSION")"
 export _PKG_CONFIG_EXECUTABLE="$(which pkg-config)"
 export _RUSTC_EXECUTABLE="$(which rustc)"
 export _CARGO_EXECUTABLE="$(which cargo)"
-export FC="$(which flang)"
+
+export _FLANG_EXECUTABLE="$(which flang)"
+export FC="$TOOLS_DIR/flang"
 
 if [ -z "$IOSSDK" ] && [ -z "$MAC_CATALYST" ] && [ -z "$WATCHOSSDK" ] && [ -z "$TVOSSDK" ]; then # Other platforms
 

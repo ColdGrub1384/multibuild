@@ -1,0 +1,31 @@
+#!/bin/sh
+
+needs_flang=false
+
+for arg in "$@"; do
+    case "$arg" in
+        # Compiler identification / version queries
+        --version|-v|-V|\
+        -dumpmachine|-dumpversion|\
+        -print-search-dirs|-print-prog-name=*|-print-file-name=*|\
+        --help|-help|-h)
+            needs_flang=true
+            break
+            ;;
+        # Any Fortran source means compilation is involved
+        *.f|*.F|*.for|*.FOR|*.fpp|*.FPP|\
+        *.f90|*.F90|*.f95|*.F95|\
+        *.f03|*.F03|*.f08|*.F08|\
+        *.f18|*.F18)
+            needs_flang=true
+            break
+            ;;
+    esac
+done
+
+if $needs_flang; then
+    exec "$_FLANG_EXECUTABLE" "$@"
+else
+    exec iosxcrun clang "$@"
+fi
+
