@@ -44,6 +44,8 @@ public struct Meson: Builder {
 
         cp "$CROSS_FILE" "$CROSS_FILE.temp"
 
+        PKG_CONFIG_PATHS="$(echo -n "'${PKG_CONFIG_LIBDIR//:/', '}'")"
+
         "$TOOLS_DIR/replace.py" "$CROSS_FILE.temp" '$SDK_NAME' "$SDK_NAME"
         "$TOOLS_DIR/replace.py" "$CROSS_FILE.temp" '$SDK_PATH' "$SDK"
         "$TOOLS_DIR/replace.py" "$CROSS_FILE.temp" '$ARCH' "$ARCHITECTURE"
@@ -54,6 +56,7 @@ public struct Meson: Builder {
         "$TOOLS_DIR/replace.py" "$CROSS_FILE.temp" '$ENDIAN' "$ENDIAN"
         "$TOOLS_DIR/replace.py" "$CROSS_FILE.temp" '$ADDITIONAL_MESON_PROPERTIES' "$ADDITIONAL_MESON_PROPERTIES"
         "$TOOLS_DIR/replace.py" "$CROSS_FILE.temp" '$ADDITIONAL_COMPILER_FLAGS' "$ADDITIONAL_COMPILER_FLAGS"
+        "$TOOLS_DIR/replace.py" "$CROSS_FILE.temp" '$PKG_CONFIG_PATH' "$PKG_CONFIG_PATHS"
         if [ -z "$SUBSYSTEM" ]; then
             "$TOOLS_DIR/replace.py" "$CROSS_FILE.temp" "\\nsubsystem = '\\$SUBSYSTEM'" ""
         else
@@ -67,10 +70,10 @@ public struct Meson: Builder {
 
         export MESON_FORCE_BACKTRACE=1
         if [ -z "$MAC_CATALYST" ]; then
-            meson setup "\(self.outputDirectoryPath(for: target))" -Ddocs=false --cross-file "$CROSS_FILE.temp" --native-file "$NATIVE_FILE"
+            meson setup "\(self.outputDirectoryPath(for: target))" -Dpkg_config_path=\"${PKG_CONFIG_LIBDIR//:/,}\" -Ddocs=false --cross-file "$CROSS_FILE.temp" --native-file "$NATIVE_FILE"
         else
             # Not cross compiling when building for Mac Catalyst
-            meson setup -Ddocs=false "\(self.outputDirectoryPath(for: target))"
+            meson setup -Ddocs=false -Dpkg_config_path=\"${PKG_CONFIG_LIBDIR//:/,}\" "\(self.outputDirectoryPath(for: target))"
         fi
 
         meson compile -C "\(self.outputDirectoryPath(for: target))"

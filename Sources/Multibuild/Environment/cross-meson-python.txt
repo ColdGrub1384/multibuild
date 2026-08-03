@@ -8,12 +8,13 @@ ar = 'ar'
 strip = 'strip'
 
 [built-in options]
-c_args = ['$MINVERSION_FLAG', '-target', '$TARGET_TRIPLE', '-I$PYTHON_HEADERS', '-DNO_APPEND_FORTRAN=1', '-arch', '$ARCH', '-isysroot', '$SDK_PATH', $ADDITIONAL_COMPILER_FLAGS]
-cpp_args = ['$MINVERSION_FLAG', '-target', '$TARGET_TRIPLE', '-I$PYTHON_HEADERS', '-DNO_APPEND_FORTRAN=1', '-arch', '$ARCH', '-isysroot', '$SDK_PATH', $ADDITIONAL_COMPILER_FLAGS]
-c_link_args = ['$MINVERSION_FLAG', '-target', '$TARGET_TRIPLE', '-arch', '$ARCH', '-isysroot', '$SDK_PATH', $ADDITIONAL_COMPILER_FLAGS]
-cpp_link_args = ['$MINVERSION_FLAG', '-target', '$TARGET_TRIPLE', '-arch', '$ARCH', '-isysroot', '$SDK_PATH', $ADDITIONAL_COMPILER_FLAGS]
+c_args = ['$MINVERSION_FLAG', '-target', '$TARGET_TRIPLE', '-I$PYTHON_HEADERS', '-arch', '$ARCH', '-isysroot', '$SDK_PATH', $ADDITIONAL_COMPILER_FLAGS]
+cpp_args = ['$MINVERSION_FLAG', '-target', '$TARGET_TRIPLE', '-I$PYTHON_HEADERS', '-arch', '$ARCH', '-isysroot', '$SDK_PATH', $ADDITIONAL_COMPILER_FLAGS]
+c_link_args = ['$MINVERSION_FLAG', '-target', '$TARGET_TRIPLE', '-arch', '$ARCH', '-isysroot', '$SDK_PATH', $PYTHON_LINK, $ADDITIONAL_COMPILER_FLAGS]
+cpp_link_args = ['$MINVERSION_FLAG', '-target', '$TARGET_TRIPLE', '-arch', '$ARCH', '-isysroot', '$SDK_PATH', $PYTHON_LINK, $ADDITIONAL_COMPILER_FLAGS]
 objc_args = ['$MINVERSION_FLAG', '-target', '$TARGET_TRIPLE', '-arch', '$ARCH', '-isysroot', '$SDK_PATH', $ADDITIONAL_COMPILER_FLAGS]
 objcpp_args = ['$MINVERSION_FLAG', '-target', '$TARGET_TRIPLE', '-arch', '$ARCH', '-isysroot', '$SDK_PATH', $ADDITIONAL_COMPILER_FLAGS]
+pkg_config_path = [$PKG_CONFIG_PATH]
 
 [properties]
 root = '$ROOT'

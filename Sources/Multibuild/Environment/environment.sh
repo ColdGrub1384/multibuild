@@ -385,6 +385,7 @@ MESON_BUILD_PYTHON() {
 
     # Create meson configuration
     cp "$CROSS_FILE_PYTHON" "$CROSS_FILE_PYTHON.temp"
+    PKG_CONFIG_PATHS="$(echo -n "'${PKG_CONFIG_LIBDIR//:/', '}'")"
     "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" '$PYTHON_HEADERS' "$PYTHON_HEADERS"
     "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" '$PYTHON_LINK' "$PYTHON_LINK"
     "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" '$SDK_NAME' "$SDK_NAME"
@@ -397,6 +398,7 @@ MESON_BUILD_PYTHON() {
     "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" '$ENDIAN' "$ENDIAN"
     "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" '$ADDITIONAL_MESON_PROPERTIES' "$ADDITIONAL_MESON_PROPERTIES"
     "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" '$ADDITIONAL_COMPILER_FLAGS' "$ADDITIONAL_COMPILER_FLAGS"
+    "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" '$PKG_CONFIG_PATH' "$PKG_CONFIG_PATHS"
     if [ -z "$SUBSYSTEM" ]; then
         "$TOOLS_DIR/replace.py" "$CROSS_FILE_PYTHON.temp" "\nsubsystem = '\$SUBSYSTEM'" ""
     else

@@ -14,6 +14,7 @@ c_link_args = ['$MINVERSION_FLAG', '-target', '$TARGET_TRIPLE', '-arch', '$ARCH'
 cpp_link_args = ['$MINVERSION_FLAG', '-target', '$TARGET_TRIPLE', '-arch', '$ARCH', '-isysroot', '$SDK_PATH', $ADDITIONAL_COMPILER_FLAGS]
 objc_args = ['$MINVERSION_FLAG', '-target', '$TARGET_TRIPLE', '-arch', '$ARCH', '-isysroot', '$SDK_PATH', $ADDITIONAL_COMPILER_FLAGS]
 objcpp_args = ['$MINVERSION_FLAG', '-target', '$TARGET_TRIPLE', '-arch', '$ARCH', '-isysroot', '$SDK_PATH', $ADDITIONAL_COMPILER_FLAGS]
+pkg_config_path = [$PKG_CONFIG_PATH]
 
 [properties]
 root = '$ROOT'
