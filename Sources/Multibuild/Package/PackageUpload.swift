@@ -28,7 +28,7 @@ public struct PackageUpload {
     }
 
     /// User credentials.
-    public struct User {
+    public struct User: Codable {
 
         /// Username for authentication.
         public var name: String
