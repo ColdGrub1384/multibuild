@@ -235,6 +235,11 @@ public struct Project {
         }
     }
 
+    /// The signing certificate name used to sign Xcode Frameworks.
+    ///
+    /// Inherited from ``BuildPlan.signingCertificateName``.
+    public var signingCertificateName: String?
+
     /// Represents the content of the build directory.
     public var build: Build? {
         guard directoryURL != nil else {
@@ -283,7 +288,13 @@ public struct Project {
         } catch {
             return nil
         }
-        return Build(buildRootDirectory: rootURL, appleUniversalBuildDirectoryURL: appleUniversalBuildDirectoryURL, buildDirs: buildDirs, products: builder.products)
+        return Build(
+            buildRootDirectory: rootURL,
+            appleUniversalBuildDirectoryURL: appleUniversalBuildDirectoryURL,
+            buildDirs: buildDirs,
+            products: builder.products,
+            signingCertificateName: signingCertificateName
+        )
     }
 
     /// Compiles the project for a given platform.
@@ -430,6 +441,10 @@ public struct Project {
                         }
                     }
 
+                    if project?.signingCertificateName == nil {
+                        project?.signingCertificateName = signingCertificateName
+                    }
+
                     if compile {
                         try project!.compile(for: [target], universalBuild: universalBuild, forceConfigure: forceConfigure)
                         if package {
@@ -511,40 +526,41 @@ public struct Project {
                 try FileManager.default.createDirectory(at: build!.buildRootDirectory.appendingPathComponent("apple.universal"), withIntermediateDirectories: true)
             }
 
-            let packageResourcesDir = build!.buildRootDirectory.appendingPathComponent("package-resources")
-            for product in builder.products {
-                guard case .resource = product.kind else {
-                    continue
-                }
-
-                guard let target = _targets.first else {
-                    continue
-                }
-
-                guard let buildDir = build?.buildDirectoryURL(for: target) else {
-                    continue
-                }
-
-                for resourcePath in product.libraryPaths {
-                    let resourceURL = buildDir.appendingPathComponent(resourcePath)
-                    guard FileManager.default.fileExists(atPath: resourceURL.path) else {
-                        print("\(resourceURL.path) does not exist")
+            if let packageResourcesDir = build?.buildRootDirectory.appendingPathComponent("package-resources") {
+                for product in builder.products {
+                    guard case .resource = product.kind else {
                         continue
-                    } 
-                    try? FileManager.default.createDirectory(at: packageResourcesDir, withIntermediateDirectories: true)
-                    let archiveURL = packageResourcesDir.appendingPathComponent("\(resourceURL.lastPathComponent).zip")
-                    try? FileManager.default.removeItem(at: archiveURL)
-                    try FileManager.default.zipItem(at: resourceURL, to: archiveURL)
-                    let archive = PackageArchive(url: archiveURL, name: directoryURL.lastPathComponent, version: versionString, kind: .unknown)
-                    if let packageUpload = packageUpload(archive) {
-                        if upload {
-                            try packageUpload.start(with: archive)
-                        }
                     }
-                    try? FileManager.default.removeItem(at: archiveURL)
+
+                    guard let target = _targets.first else {
+                        continue
+                    }
+
+                    guard let buildDir = build?.buildDirectoryURL(for: target) else {
+                        continue
+                    }
+
+                    for resourcePath in product.libraryPaths {
+                        let resourceURL = buildDir.appendingPathComponent(resourcePath)
+                        guard FileManager.default.fileExists(atPath: resourceURL.path) else {
+                            print("\(resourceURL.path) does not exist")
+                            continue
+                        } 
+                        try? FileManager.default.createDirectory(at: packageResourcesDir, withIntermediateDirectories: true)
+                        let archiveURL = packageResourcesDir.appendingPathComponent("\(resourceURL.lastPathComponent).zip")
+                        try? FileManager.default.removeItem(at: archiveURL)
+                        try FileManager.default.zipItem(at: resourceURL, to: archiveURL)
+                        let archive = PackageArchive(url: archiveURL, name: directoryURL.lastPathComponent, version: versionString, kind: .unknown)
+                        if let packageUpload = packageUpload(archive) {
+                            if upload {
+                                try packageUpload.start(with: archive)
+                            }
+                        }
+                        try? FileManager.default.removeItem(at: archiveURL)
+                    }
                 }
+                try? FileManager.default.removeItem(at: packageResourcesDir)
             }
-            try? FileManager.default.removeItem(at: packageResourcesDir)
 
             let frameworks = (try build?.createXcodeFrameworks(bundleIdentifierPrefix: bundleIdentifierPrefix)) ?? []
             for framework in frameworks {

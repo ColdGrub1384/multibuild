@@ -16,6 +16,16 @@ public struct Build {
         public var exitCode: Int
     }
 
+    /// A signing error occurred when running `codesign`.
+    public struct CodeSignError: Swift.Error {
+    
+        /// Arguments passed to `codesign`.
+        public var arguments: [String]
+
+        /// Exit code of the process.
+        public var exitCode: Int
+    }
+
     /// Targets present in the build directory.
     public var targets: [Target] {
         Array<Target>(buildDirs.keys)
@@ -37,11 +47,14 @@ public struct Build {
         return ProjectNames[projectName]?.versionString
     }
 
-    internal init(buildRootDirectory: URL, appleUniversalBuildDirectoryURL: URL?, buildDirs: [Target:URL], products: [Product]) {
+    internal var signingCertificateName: String?
+
+    internal init(buildRootDirectory: URL, appleUniversalBuildDirectoryURL: URL?, buildDirs: [Target:URL], products: [Product], signingCertificateName: String?) {
         self.buildRootDirectory = buildRootDirectory
         self.appleUniversalBuildDirectoryURL = appleUniversalBuildDirectoryURL
         self.buildDirs = buildDirs
         self.products = products
+        self.signingCertificateName = signingCertificateName
     }
 
     /// Build directory for given target.
@@ -511,6 +524,20 @@ public struct Build {
         }
     }
 
+    internal func sign(xcodeFramework: URL) throws {
+         if let signingCertificateName {
+            let codesign = Process()
+            codesign.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
+            codesign.arguments = ["--timestamp", "-s", signingCertificateName, xcodeFramework.path]
+            codesign.launch()
+            codesign.waitUntilExit()
+
+            if codesign.terminationStatus != 0 {
+                throw CodeSignError(arguments: codesign.arguments ?? [], exitCode: Int(codesign.terminationStatus))
+            }
+        }
+    }
+
     /// Creates a Xcode frameworks with all of the compiled platforms and a zipped Swift package.
     /// Fails if no product is found targetting an Apple SDK.
     /// 
@@ -807,7 +834,7 @@ public struct Build {
 
                 if xcodebuild.terminationStatus != 0 {
                     throw MergeError(programName: "xcodebuild", arguments: xcodebuild.arguments ?? [], exitCode: Int(xcodebuild.terminationStatus))
-                }
+                } 
             }
         }
 
@@ -920,6 +947,10 @@ public struct Build {
             if xcodebuild.terminationStatus != 0 {
                 throw MergeError(programName: "xcodebuild", arguments: xcodebuild.arguments ?? [], exitCode: Int(xcodebuild.terminationStatus))
             }
+        }
+
+        for framework in xcframeworks {
+            try sign(xcodeFramework: framework)
         }
 
         return xcframeworks

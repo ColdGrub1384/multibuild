@@ -176,11 +176,23 @@ public struct BuildCommand<BuildPlanType: BuildPlan>: ParsableCommand {
             return
         }
 
-        let projects = try validateProjects()
+        var projects = [Project]()
         let targets = self.targets.isEmpty ? plan.platform.supportedTargets : self.targets
 
+        for project in try validateProjects() {
+            var _project = project
+            if _project.signingCertificateName == nil {
+                _project.signingCertificateName = plan.signingCertificateName
+            }
+            projects.append(_project)
+        }
+
         if projects.isEmpty {
-            try plan.project.build(
+            var project = plan.project
+            if project.signingCertificateName == nil {
+                project.signingCertificateName = plan.signingCertificateName
+            }
+            try project.build(
                 for: targets,
                 universalBuild: false,
                 forceConfigure: forceConfigure,

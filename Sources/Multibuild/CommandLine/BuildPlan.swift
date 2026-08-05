@@ -27,9 +27,12 @@ public protocol BuildPlan {
     /// Bundle identifier prefix for Apple frameworks.
     var bundleIdentifierPrefix: String { get set }
 
+    /// An optional signing certificate used to sign Xcode Frameworks.
+    var signingCertificateName: String? { get set }
+
     /// Root directory passed to the command line arguments via the '--root' option.
     /// Can be used as a reference to find your projects. (Defaults to working directory)
-    var rootURL: URL { get }
+    var rootURL: URL { get } 
 
     /// A project to compile. You can concatenate them to create a combined project.
     @PlanBuilder
