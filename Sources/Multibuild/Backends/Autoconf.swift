@@ -106,13 +106,7 @@ public struct Autoconf: Builder {
         if [ -f "Makefile" ] && [ "\(forceConfigure)" = "false" ]; then
              \(makeCall)
         else
-            \(!(configureArguments?(target).contains(where: { $0.hasPrefix("--prefix") }) ?? false) ? "$configure_path \(arguments) --prefix=\"$(realpath \"$PWD/../../build/$PLATFORM.$ARCHITECTURE\")\" CC=\"$CC\"" : "$configure_path \(arguments)") \
-            CXX="$CXX" \
-            CPP="$CPP" \
-            LD="$LD" \
-            CFLAGS="$CFLAGS" \
-            CXXFLAGS="$CXXFLAGS" \
-            LDFLAGS="$LDFLAGS" &&
+            \(!(configureArguments?(target).contains(where: { $0.hasPrefix("--prefix") }) ?? false) ? "$configure_path \(arguments) --prefix=\"$(realpath \"$PWD/../../build/$PLATFORM.$ARCHITECTURE\")\"" : "$configure_path \(arguments)") &&
             "$TOOLS_DIR/replace.py" "Makefile" "-static" "" &&
             \(target.systemName == .watchos ? "\"$TOOLS_DIR/replace.py\" \"Makefile\" \"-arch armv7 \" \"\" &&" : "")
             \(makeCall)
