@@ -6,6 +6,9 @@ public struct Meson: Builder {
     /// Target specific flags passed to the compiler.
     public var additionalCompilerFlags: ((Target) -> [String])?
 
+    /// Options passed to Meson.
+    public var options: [String:String]?
+
     public var products: [Product]
     
     public var environment: ((Target) -> [String:String])?
@@ -14,12 +17,15 @@ public struct Meson: Builder {
     ///
     /// - Parameters:
     ///     - products: Products of the compilation used for packaging operations.
+    ///     - options: Options passed to Meson.
     ///     - environment: Environment variables for a given target.
     ///     - additionalCompilerFlags: Target specific flags passed to the compiler.
     public init(products: [Product],
+                options: [String:String]? = nil,
                 environment: ((Target) -> [String:String])? = nil,
                 additionalCompilerFlags: ((Target) -> [String])? = nil) {
         self.products = products
+        self.options = options
         self.environment = environment
         self.additionalCompilerFlags = additionalCompilerFlags
     }
@@ -28,6 +34,11 @@ public struct Meson: Builder {
         let commaSeparatedFlags = (additionalCompilerFlags?(target) ?? []).map({
             "'\($0.replacingOccurrences(of: "\'", with: "\\\'"))'"
         }).joined(separator: ", ")
+
+        let mesonOptions = (options ?? [:]).map { name, value in
+            let argument = "-D\(name)=\(value)"
+            return "'\(argument.replacingOccurrences(of: "'", with: "'\\''"))'"
+        }.joined(separator: " ")
 
         return """
 
@@ -69,15 +80,11 @@ public struct Meson: Builder {
         unset WATCHOS_DEPLOYMENT_TARGET
 
         export MESON_FORCE_BACKTRACE=1
-        if [ -z "$MAC_CATALYST" ]; then
-            meson setup "\(self.outputDirectoryPath(for: target))" -Dpkg_config_path=\"${PKG_CONFIG_LIBDIR//:/,}\" -Ddocs=false --cross-file "$CROSS_FILE.temp" --native-file "$NATIVE_FILE"
-        else
-            # Not cross compiling when building for Mac Catalyst
-            meson setup -Ddocs=false -Dpkg_config_path=\"${PKG_CONFIG_LIBDIR//:/,}\" "\(self.outputDirectoryPath(for: target))"
-        fi
+        meson setup "\(self.outputDirectoryPath(for: target))" -Dpkg_config_path=\"${PKG_CONFIG_LIBDIR//:/,}\" --cross-file "$CROSS_FILE.temp" --native-file "$NATIVE_FILE" \(mesonOptions)
 
         meson compile -C "\(self.outputDirectoryPath(for: target))"
         rm "$CROSS_FILE.temp"
         """
     }
+
 }
