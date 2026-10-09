@@ -81,7 +81,7 @@ public struct CMake: Builder {
 
         let linkerFlags = "-target '\(target.triple!)' -isysroot '\(target.sdkURL!.path)'"
         var exeLinkerFlags = linkerFlags
-        var staticLinkerFlags = linkerFlags
+        var staticLinkerFlags = ""
         var sharedLinkerFlags = linkerFlags
 
         for option in self.options(target) {
@@ -104,6 +104,8 @@ public struct CMake: Builder {
             } else if option.key == "CMAKE_SHARED_LINKER_FLAGS" {
                 sharedLinkerFlags += " \(option.value)"
                 continue
+            } else if option.key == "CMAKE_Fortran_FLAGS" {
+                staticLinkerFlags += " \(option.value)"
             }
             options[option.key] = value
         }
@@ -139,7 +141,7 @@ public struct CMake: Builder {
         fi
 
         mkdir -p "\(buildDir)"
-        if [ -f "\(buildDir)/CMakeCache.txt" ] && [ "\(forceConfigure)" = "false" ]; then
+        if [ -f "\(buildDir)/CMakeCache.txt" ] && [ "true" = "false" ]; then
             cd "\(buildDir)" &&
             \(buildInvocation)
         else
