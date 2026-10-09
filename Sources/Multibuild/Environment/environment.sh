@@ -232,7 +232,7 @@ export PIP_REQUIRE_VIRTUALENV=false
 export PKG_CONFIG="$(which pkg-config)"
 export CMAKE="$(which cmake)"
 
-# Python build stuff
+# Build stuff
 
 BUILD() {
     LINKER_FLAGS="${PYTHON_LINK//,/ }"
