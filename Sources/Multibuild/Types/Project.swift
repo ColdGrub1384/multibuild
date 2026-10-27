@@ -33,6 +33,10 @@ public struct Project {
                 break
             }
         }
+
+        if newVersion.components(separatedBy: ".").count < 3 {
+            newVersion += ".0"
+        }
         
         return newVersion
     }
