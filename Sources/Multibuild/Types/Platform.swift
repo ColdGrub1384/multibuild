@@ -11,9 +11,9 @@ public struct Platform {
         Target(systemName: .iphonesimulator, architectures: [.arm64, .x86_64])
     ])
 
-    /// watchOS armv7k + arm64_32 + arm64 and watchOS Simulator arm64 + x86_64
+    /// watchOS arm64_32 + arm64 and watchOS Simulator arm64 + x86_64
     public static let watchOS = Self(supportedTargets: [
-        Target(systemName: .watchos, architectures: [.armv7k, .arm64_32, .arm64]),
+        Target(systemName: .watchos, architectures: [.arm64_32, .arm64]),
         Target(systemName: .watchsimulator, architectures: [.arm64, .x86_64])
     ])
 
